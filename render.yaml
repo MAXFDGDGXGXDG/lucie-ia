@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: lucie-ia
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python cloud_server.py
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: LUCIE_DATA_DIR
+        value: /tmp/lucie

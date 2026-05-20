@@ -1,0 +1,74 @@
+[
+  {
+    "question": "Qu'est-ce que la photosynthèse et pourquoi est-elle importante pour les plantes ?",
+    "answer": "La photosynthèse est le processus par lequel les plantes convertissent la lumière du soleil en énergie chimique, en utilisant le dioxyde de carbone et l'eau pour produire du glucose et de l'oxygène. Elle est essentielle car elle permet aux plantes de se nourrir et de produire l'oxygène nécessaire à la vie sur Terre."
+  },
+  {
+    "question": "Quels sont les trois états de la matière et leurs caractéristiques ?",
+    "answer": "Les trois états de la matière sont solide, liquide et gaz. Les solides ont une forme définie et un volume fixe, les liquides ont un volume fixe mais prennent la forme de leur contenant, et les gaz n'ont ni forme ni volume définis, remplissant tout l'espace disponible."
+  },
+  {
+    "question": "Quel est le rôle des enzymes dans les réactions chimiques du corps ?",
+    "answer": "Les enzymes sont des protéines qui agissent comme des catalyseurs dans les réactions chimiques du corps, accélérant des processus comme la digestion et le métabolisme en abaissant l'énergie d'activation nécessaire pour que ces réactions se produisent."
+  },
+  {
+    "question": "Comment fonctionne le cycle de l'eau dans la nature ?",
+    "answer": "Le cycle de l'eau décrit le processus continu par lequel l'eau s'évapore de la surface de la Terre, se condense pour former des nuages, puis retombe sous forme de précipitations, avant de retourner aux océans et aux rivières, complétant ainsi le cycle."
+  },
+  {
+    "question": "Quelles sont les différences entre une réaction endothermique et une réaction exothermique ?",
+    "answer": "Une réaction endothermique absorbe de l'énergie sous forme de chaleur, entraînant une baisse de température dans l'environnement, tandis qu'une réaction exothermique libère de l'énergie, suscitant une augmentation de température."
+  },
+  {
+    "question": "Qu'est-ce que la loi de la gravitation universelle ?",
+    "answer": "La loi de la gravitation universelle, formulée par Isaac Newton, stipule que deux corps attirent mutuellement avec une force qui est proportionnelle au produit de leurs masses et inversement proportionnelle au carré de la distance entre leurs centres."
+  },
+  {
+    "question": "Quelle est la différence entre un atome et une molécule ?",
+    "answer": "Un atome est la plus petite unité de matière, composée de protons, neutrons et électrons, tandis qu'une molécule est un ensemble d'atomes liés chimiquement entre eux."
+  },
+  {
+    "question": "Qu'est-ce que la théorie de l'évolution et qui en a été le précurseur ?",
+    "answer": "La théorie de l'évolution, proposée par Charles Darwin, décrit le processus par lequel les espèces changent au fil du temps par le biais de la sélection naturelle, où les traits favorables survivent et se reproduisent."
+  },
+  {
+    "question": "Comment les antibiotiques agissent-ils sur les bactéries ?",
+    "answer": "Les antibiotiques fonctionnent en ciblant des processus ou structures spécifiques dans les bactéries, comme en inhibant la synthèse de la paroi cellulaire ou en bloquant la reproduction, ce qui entraîne la mort des bactéries ou leur incapacité à se multiplier."
+  },
+  {
+    "question": "Quel est le principe de base de la thermodynamique ?",
+    "answer": "Le principe de base de la thermodynamique est que l'énergie ne peut ni être créée ni détruite, mais seulement transformée d'une forme à une autre, et que les systèmes tendent vers l'équilibre."
+  },
+  {
+    "question": "Que sont les acides et les bases selon la théorie de Brønsted-Lowry ?",
+    "answer": "Selon la théorie de Brønsted-Lowry, un acide est une substance qui peut donner un proton (H+) tandis qu'une base est une substance qui peut accepter un proton."
+  },
+  {
+    "question": "Quelles sont les étapes du processus de reproduction chez les plantes à fleurs ?",
+    "answer": "Le processus de reproduction chez les plantes à fleurs implique plusieurs étapes : la pollinisation (transfert de pollen), la fécondation (fusion des gamètes), et la formation de fruits et graines."
+  },
+  {
+    "question": "Quel a été l'impact de la découverte de la structure de l'ADN ?",
+    "answer": "La découverte de la structure de l'ADN par James Watson et Francis Crick a révolutionné la biologie en fournissant une compréhension du mécanisme de l'hérédité et a ouvert la voie aux avancées en biotechnologie, médecine et génétique."
+  },
+  {
+    "question": "Qu'est-ce qu'un écosystème et quels sont ses composants principaux ?",
+    "answer": "Un écosystème est une communauté d'organismes interagissant entre eux et avec leur environnement physique. Ses composants principaux incluent les producteurs (plantes), les consommateurs (animaux) et les décomposeurs (bactéries et champignons)."
+  },
+  {
+    "question": "Pourquoi les cycles de carbone et d'azote sont-ils importants pour la vie sur Terre ?",
+    "answer": "Les cycles de carbone et d'azote sont essentiels car ils régulent la disponibilité de ces éléments dans l'environnement, permettant le maintien de la vie, la croissance des plantes et le bon fonctionnement des écosystèmes."
+  },
+  {
+    "question": "Quels sont les principaux gaz à effet de serre et leur effet sur le climat ?",
+    "answer": "Les principaux gaz à effet de serre comprennent le dioxyde de carbone, le méthane et le protoxyde d'azote. Ils piègent la chaleur dans l'atmosphère, contribuant au réchauffement climatique et aux changements climatiques."
+  },
+  {
+    "question": "Qu'est-ce que la génétique et comment influence-t-elle le développement des organismes ?",
+    "answer": "La génétique est l'étude des gènes et de l'hérédité. Elle influence le développement des organismes en déterminant les traits hérités de leurs parents par le biais des gènes."
+  },
+  {
+    "question": "Quelle est la fonction des mitochondries dans les cellules ?",
+    "answer": "Les mitochondries, appelées les 'centrales énergétiques' de la cellule, produisent l'adénosine triphosphate (ATP) par le biais de la respiration cellulaire, fournissant ainsi l'énergie nécessaire aux fonctions cellulaires."
+  }
+]

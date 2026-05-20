@@ -1,0 +1,430 @@
+[
+  {
+    "question": "Qu'est-ce que Python ?",
+    "answer": "Python est un langage de programmation interprété, de haut niveau, qui privilégie la lisibilité du code et la simplicité."
+  },
+  {
+    "question": "Comment installer Python sur Windows ?",
+    "answer": "Pour installer Python sur Windows, téléchargez le programme d'installation à partir du site officiel de Python, exécutez-le, et suivez les instructions d'installation."
+  },
+  {
+    "question": "Quelle est la syntaxe de base d'un programme en Python ?",
+    "answer": "Un programme Python commence généralement par la déclaration de modules et comprend des instructions indentées pour définir des blocs de code."
+  },
+  {
+    "question": "Qu'est-ce qu'une variable en Python ?",
+    "answer": "Une variable en Python est un nom qui fait référence à un objet et permet de stocker des données."
+  },
+  {
+    "question": "Comment déclarer une variable en Python ?",
+    "answer": "Pour déclarer une variable en Python, il suffit d'assigner une valeur à un nom, par exemple : x = 10."
+  },
+  {
+    "question": "Quels types de données principaux Python supporte-t-il ?",
+    "answer": "Python supporte plusieurs types de données, notamment les entiers, les flottants, les chaînes de caractères, et les booléens."
+  },
+  {
+    "question": "Comment créer une liste en Python ?",
+    "answer": "Pour créer une liste en Python, utilisez des crochets, par exemple : ma_liste = [1, 2, 3, 4]."
+  },
+  {
+    "question": "Quelle est la différence entre une liste et un tuple en Python ?",
+    "answer": "La principale différence est que les listes sont mutables (modifiable) alors que les tuples sont immuables (non modifiables)."
+  },
+  {
+    "question": "Comment accéder à un élément d'une liste par son index en Python ?",
+    "answer": "Vous pouvez accéder à un élément d'une liste en utilisant son index, par exemple : ma_liste[0] accède au premier élément."
+  },
+  {
+    "question": "Comment ajouter un élément à une liste en Python ?",
+    "answer": "Pour ajouter un élément à une liste, vous pouvez utiliser la méthode append(), par exemple : ma_liste.append(5)."
+  },
+  {
+    "question": "Que fait la fonction len() en Python ?",
+    "answer": "La fonction len() retourne le nombre d'éléments d'un objet, tel qu'une liste ou une chaîne de caractères."
+  },
+  {
+    "question": "Comment créer une fonction en Python ?",
+    "answer": "Pour créer une fonction en Python, utilisez le mot clé 'def' suivi du nom de la fonction et des parenthèses, par exemple : def ma_fonction():"
+  },
+  {
+    "question": "Comment passer des arguments à une fonction en Python ?",
+    "answer": "Les arguments peuvent être passés en les insérant entre les parenthèses lors de l'appel de la fonction, par exemple : ma_fonction(arg1, arg2)."
+  },
+  {
+    "question": "Qu'est-ce qu'une boucle for en Python ?",
+    "answer": "Une boucle for en Python est utilisée pour itérer sur une séquence (liste, tuple, dictionnaire) et exécuter un bloc de code pour chaque élément."
+  },
+  {
+    "question": "Comment utiliser une boucle while en Python ?",
+    "answer": "Une boucle while exécute un bloc de code tant qu'une condition est vraie, par exemple : while x < 10:."
+  },
+  {
+    "question": "Quelle est l'importance des indentations en Python ?",
+    "answer": "Les indentations en Python sont essentielles pour définir la structure des blocs de code, car Python utilise l'indentation au lieu des accolades pour délimiter les blocs."
+  },
+  {
+    "question": "Qu'est-ce qu'une exception en Python ?",
+    "answer": "Une exception en Python est une erreur détectée lors de l'exécution d'un programme, qui peut être gérée avec un bloc try/except."
+  },
+  {
+    "question": "Comment gérer les exceptions en Python ?",
+    "answer": "Pour gérer une exception, utilisez le bloc try pour encapsuler le code susceptible de provoquer une erreur, suivi d'un bloc except pour traiter l'erreur."
+  },
+  {
+    "question": "Qu'est-ce qu'un dictionnaire en Python ?",
+    "answer": "Un dictionnaire en Python est une collection non ordonnée d'objets, où chaque objet est stocké sous forme de paires clé-valeur."
+  },
+  {
+    "question": "Comment créer un dictionnaire en Python ?",
+    "answer": "Pour créer un dictionnaire, utilisez des accolades, par exemple : mon_dico = {'cle': 'valeur'}."
+  },
+  {
+    "question": "Comment accéder à une valeur dans un dictionnaire en Python ?",
+    "answer": "Pour accéder à une valeur dans un dictionnaire, utilisez la clé entre crochets, par exemple : mon_dico['cle']."
+  },
+  {
+    "question": "Comment ajouter un nouvel élément à un dictionnaire en Python ?",
+    "answer": "Pour ajouter un nouvel élément, assignez une valeur à une nouvelle clé, par exemple : mon_dico['nouvelle_cle'] = 'nouvelle_valeur'."
+  },
+  {
+    "question": "Quelle est la différence entre la méthode .append() et la méthode .extend() en Python ?",
+    "answer": ".append() ajoute un seul élément à la fin d'une liste, tandis que .extend() ajoute plusieurs éléments de façon itérative."
+  },
+  {
+    "question": "Comment trier une liste en Python ?",
+    "answer": "Pour trier une liste, utilisez la méthode .sort() pour trier sur place ou la fonction sorted() pour obtenir une nouvelle liste triée."
+  },
+  {
+    "question": "Qu'est-ce qu'une compréhension de liste en Python ?",
+    "answer": "Une compréhension de liste est une méthode concise pour créer des listes en utilisant une expression et une boucle for."
+  },
+  {
+    "question": "Comment créer une classe en Python ?",
+    "answer": "Pour créer une classe, utilisez le mot clé class, par exemple : class MaClasse:."
+  },
+  {
+    "question": "Qu'est-ce qu'un objet en Python ?",
+    "answer": "Un objet en Python est une instance d'une classe qui contient des données et des méthodes."
+  },
+  {
+    "question": "Quel est le rôle de l'init méthode dans une classe Python ?",
+    "answer": "La méthode __init__ est le constructeur d'une classe, utilisée pour initialiser les attributs de l'objet lors de sa création."
+  },
+  {
+    "question": "Qu'est-ce que l'héritage en Python ?",
+    "answer": "L'héritage permet de créer une nouvelle classe qui hérite des attributs et méthodes d'une classe existante."
+  },
+  {
+    "question": "Comment appeler une méthode d'une classe par une instance en Python ?",
+    "answer": "Pour appeler une méthode d'une classe par une instance, utilisez la syntaxe : instance.methode()."
+  },
+  {
+    "question": "Que fait le mot clé 'self' dans les méthodes de classe ?",
+    "answer": "Le mot clé 'self' fait référence à l'instance actuelle de la classe et permet d'accéder à ses attributs et méthodes."
+  },
+  {
+    "question": "Comment utiliser les modules en Python ?",
+    "answer": "Les modules en Python peuvent être utilisés en les important avec l'instruction import, par exemple : import math."
+  },
+  {
+    "question": "Qu'est-ce que le module math en Python ?",
+    "answer": "Le module math fournit des fonctions mathématiques comme sin(), cos(), et sqrt() pour effectuer des calculs mathématiques avancés."
+  },
+  {
+    "question": "Comment gérer les fichiers en Python ?",
+    "answer": "Les fichiers en Python peuvent être gérés avec la fonction open(), qui permet d'ouvrir un fichier pour la lecture ou l'écriture."
+  },
+  {
+    "question": "Quelle est la syntaxe pour ouvrir un fichier en mode lecture en Python ?",
+    "answer": "Pour ouvrir un fichier en mode lecture, utilisez open('nom_fichier.txt', 'r')."
+  },
+  {
+    "question": "Comment lire le contenu d'un fichier en Python ?",
+    "answer": "Utilisez la méthode read() sur l'objet fichier, par exemple : contenu = fichier.read()."
+  },
+  {
+    "question": "Comment écrire dans un fichier en Python ?",
+    "answer": "Pour écrire dans un fichier, ouvrez-le en mode écriture 'w' et utilisez la méthode write(), par exemple : fichier.write('Texte')."
+  },
+  {
+    "question": "Comment fermer un fichier en Python ?",
+    "answer": "Pour fermer un fichier, utilisez la méthode close() sur l'objet fichier, par exemple : fichier.close()."
+  },
+  {
+    "question": "Qu'est-ce que le package 'pandas' en Python ?",
+    "answer": "Pandas est une bibliothèque Python permettant de manipuler et d'analyser des données sous forme de tables."
+  },
+  {
+    "question": "Comment installer la bibliothèque 'pandas' ?",
+    "answer": "Pour installer pandas, utilisez la commande pip install pandas dans le terminal."
+  },
+  {
+    "question": "En quoi consiste l'utilisation de 'numpy' en Python ?",
+    "answer": "Numpy fournit un support pour les arrays multidimensionnels et permet de réaliser des calculs mathématiques efficaces."
+  },
+  {
+    "question": "Quelle est la fonction principale de matplotlib ?",
+    "answer": "Matplotlib est utilisé pour créer des graphiques et visualiser des données en Python."
+  },
+  {
+    "question": "Comment installer matplotlib ?",
+    "answer": "Pour installer matplotlib, utilisez la commande pip install matplotlib dans le terminal."
+  },
+  {
+    "question": "Qu'est-ce que le 'debugging' ?",
+    "answer": "Le debugging est le processus d'identification et de correction des erreurs dans un programme."
+  },
+  {
+    "question": "Comment utiliser un 'debugger' en Python ?",
+    "answer": "Vous pouvez utiliser pdb, le module de débogage intégré à Python, pour suivre l'exécution du code et analyser les erreurs."
+  },
+  {
+    "question": "Qu'est-ce que le 'type hinting' en Python ?",
+    "answer": "Le type hinting permet d'indiquer le type des variables et des fonctions, améliorant ainsi la lisibilité du code."
+  },
+  {
+    "question": "Comment utiliser des assertions en Python ?",
+    "answer": "Les assertions sont utilisées pour tester une condition, et si la condition est fausse, une exception AssertionError est levée."
+  },
+  {
+    "question": "Quelle est la différence entre '==' et 'is' en Python ?",
+    "answer": "Le '==' compare les valeurs de deux objets alors que 'is' compare les identités des objets."
+  },
+  {
+    "question": "Que fait le mot clé 'global' en Python ?",
+    "answer": "Le mot clé 'global' permet de déclarer qu'une variable est global et peut être modifiée à l'intérieur d'une fonction."
+  },
+  {
+    "question": "Qu'est-ce qu'un générateur en Python ?",
+    "answer": "Un générateur est une fonction qui utilise yield pour retourner un ou plusieurs résultats, permettant un parcours d'itération sans stocker toute la mémoire."
+  },
+  {
+    "question": "Comment créer un générateur en Python ?",
+    "answer": "Pour créer un générateur en Python, définissez une fonction avec l'instruction yield pour fournir des résultats un à un."
+  },
+  {
+    "question": "Qu'est-ce que 'lambda' en Python ?",
+    "answer": "Lambda est une expression utilisée pour créer des fonctions anonymes en une seule ligne de code."
+  },
+  {
+    "question": "Quelle est la syntaxe pour créer une fonction lambda en Python ?",
+    "answer": "La syntaxe est : lambda arguments: expression."
+  },
+  {
+    "question": "Qu'est-ce qu'un decorator en Python ?",
+    "answer": "Un decorator est une fonction qui modifie le comportement d'une autre fonction."
+  },
+  {
+    "question": "Comment appliquer un decorator à une fonction en Python ?",
+    "answer": "Utilisez le symbole @ suivi du nom de la fonction decorator avant la définition de la fonction ciblée."
+  },
+  {
+    "question": "Comment utiliser la bibliothèque 'requests' en Python ?",
+    "answer": "La bibliothèque requests est utilisée pour faire des requêtes HTTP, et elle peut être installée avec pip install requests."
+  },
+  {
+    "question": "Qu'est-ce qu'une API REST en Python ?",
+    "answer": "Une API REST est une interface qui permet de communiquer avec des services web en utilisant les méthodes HTTP."
+  },
+  {
+    "question": "Comment consommer une API REST en Python ?",
+    "answer": "Pour consommer une API REST, utilisez la bibliothèque requests pour effectuer des appels HTTP aux endpoints de l'API."
+  },
+  {
+    "question": "Quelle est la commande pour créer un environnement virtuel en Python ?",
+    "answer": "Utilisez la commande python -m venv nom_environnement pour créer un environnement virtuel."
+  },
+  {
+    "question": "Comment activer un environnement virtuel en Python sur Windows ?",
+    "answer": "Pour activer un environnement virtuel sur Windows, exécutez : nom_environnement\\Scripts\\activate."
+  },
+  {
+    "question": "Qu'est-ce que 'pip' ?",
+    "answer": "Pip est un gestionnaire de paquets pour Python qui permet d'installer et de gérer des bibliothèques."
+  },
+  {
+    "question": "Comment installer un package avec pip ?",
+    "answer": "Utilisez la commande pip install nom_du_package dans le terminal."
+  },
+  {
+    "question": "Comment mettre à jour pip ?",
+    "answer": "Pour mettre à jour pip, utilisez la commande pip install --upgrade pip."
+  },
+  {
+    "question": "Qu'est-ce que 'Flask' en Python ?",
+    "answer": "Flask est un micro-framework web en Python qui facilite la création d'applications web."
+  },
+  {
+    "question": "Comment installer Flask ?",
+    "answer": "Flask peut être installé via pip avec la commande pip install Flask."
+  },
+  {
+    "question": "Quels sont les avantages de Python pour le développement web ?",
+    "answer": "Python est facile à apprendre, offre de nombreuses bibliothèques et frameworks, et est très flexible pour le développement web."
+  },
+  {
+    "question": "Comment exécuter un script Python depuis la ligne de commande ?",
+    "answer": "Pour exécuter un script Python, utilisez la commande python nom_script.py dans le terminal."
+  },
+  {
+    "question": "Qu'est-ce que le framework Django en Python ?",
+    "answer": "Django est un framework web complet de haut niveau qui encourage le développement rapide et une architecture propre."
+  },
+  {
+    "question": "Quels sont les composants principaux de Django ?",
+    "answer": "Les composants principaux de Django incluent le système de modèles, le système d'administration, les vues et les URL."
+  },
+  {
+    "question": "Comment créer un projet Django ?",
+    "answer": "Pour créer un projet Django, utilisez la commande django-admin startproject nom_du_projet."
+  },
+  {
+    "question": "Comment démarrer un serveur de développement Django ?",
+    "answer": "Pour démarrer le serveur de développement, utilisez la commande python manage.py runserver."
+  },
+  {
+    "question": "Qu'est-ce que l'approche MVC dans Django ?",
+    "answer": "L'approche MVC (Modèle-Vue-Contrôleur) est utilisée pour séparer la logique de l'application de l'interface utilisateur."
+  },
+  {
+    "question": "Comment créer une nouvelle application Django ?",
+    "answer": "Pour créer une nouvelle application dans un projet Django, utilisez la commande python manage.py startapp nom_application."
+  },
+  {
+    "question": "Qu'est-ce que le module 'os' en Python ?",
+    "answer": "Le module os fournit une interface pour interagir avec le système d'exploitation, comme la manipulation de fichiers et de répertoires."
+  },
+  {
+    "question": "Comment créer un répertoire en Python ?",
+    "answer": "Pour créer un répertoire, utilisez la méthode os.mkdir('nom_répertoire')."
+  },
+  {
+    "question": "Que fait le module 'sys' en Python ?",
+    "answer": "Le module sys fournit des fonctions et des variables pour manipuler l'environnement d'exécution de Python."
+  },
+  {
+    "question": "Comment obtenir les arguments de la ligne de commande en Python ?",
+    "answer": "Vous pouvez obtenir les arguments de la ligne de commande en utilisant sys.argv."
+  },
+  {
+    "question": "Qu'est-ce que le format JSON et comment l'utiliser en Python ?",
+    "answer": "JSON (JavaScript Object Notation) est un format de données léger utilisé pour échanger des données. En Python, vous pouvez le gérer avec le module json."
+  },
+  {
+    "question": "Comment convertir un dictionnaire en JSON en Python ?",
+    "answer": "Pour convertir un dictionnaire en JSON, utilisez la méthode json.dumps(dictionnaire)."
+  },
+  {
+    "question": "Comment parser une chaîne JSON en dictionnaire en Python ?",
+    "answer": "Pour parser une chaîne JSON en dictionnaire, utilisez la méthode json.loads(chaine_json)."
+  },
+  {
+    "question": "Qu'est-ce qu'un serveur web en Python ?",
+    "answer": "Un serveur web en Python permet d'héberger des applications web et de gérer des requêtes HTTP."
+  },
+  {
+    "question": "Quelle bibliothèque Python peut être utilisée pour créer un serveur web simple ?",
+    "answer": "La bibliothèque 'http.server' peut être utilisée pour créer un serveur web simple en Python."
+  },
+  {
+    "question": "Comment gérer le multithreading en Python ?",
+    "answer": "Le module threading permet de créer et gérer plusieurs threads d'exécution simultanément en Python."
+  },
+  {
+    "question": "Qu'est-ce que le module 'multiprocessing' en Python ?",
+    "answer": "Le module multiprocessing permet de créer des processus parallèles pour effectuer des tâches en parallèle."
+  },
+  {
+    "question": "Comment synchroniser des threads en Python ?",
+    "answer": "Vous pouvez utiliser des objets Lock pour synchroniser des threads et éviter les conditions de course."
+  },
+  {
+    "question": "Qu'est-ce que l'API asyncio en Python ?",
+    "answer": "L'API asyncio permet d'écrire du code asynchrone en Python à l'aide de coroutines pour gérer des opérations non bloquantes."
+  },
+  {
+    "question": "Comment définir une coroutine en Python ?",
+    "answer": "Pour définir une coroutine, utilisez le mot clé async avant la déclaration de la fonction, par exemple : async def ma_coroutine():"
+  },
+  {
+    "question": "Qu'est-ce qu'un framework ORM en Python ?",
+    "answer": "Un framework ORM (Object-Relational Mapping) permet de manipuler une base de données en utilisant des objets Python."
+  },
+  {
+    "question": "Quel ORM est souvent utilisé avec Django ?",
+    "answer": "Django utilise son propre ORM intégré pour gérer les interactions avec la base de données."
+  },
+  {
+    "question": "Comment utiliser les migrations avec Django ?",
+    "answer": "Pour utiliser les migrations dans Django, utilisez les commandes python manage.py makemigrations et python manage.py migrate."
+  },
+  {
+    "question": "Qu'est-ce qu'un test unitaire en Python ?",
+    "answer": "Un test unitaire est une méthode de test qui vérifie qu'une petite partie du code (généralement une fonction) fonctionne comme attendu."
+  },
+  {
+    "question": "Comment créer un test unitaire en Python ?",
+    "answer": "Pour créer un test unitaire, utilisez le module unittest et définissez une classe de test héritant de unittest.TestCase."
+  },
+  {
+    "question": "Quels sont les avantages des tests automatisés en Python ?",
+    "answer": "Les tests automatisés améliorent la qualité du code, réduisent les erreurs et facilitent le processus de développement."
+  },
+  {
+    "question": "Qu'est-ce qu'une pipeline CI/CD en Python ?",
+    "answer": "Une pipeline CI/CD est une série d'étapes automatisées qui préparent et déploient le code, permettant une intégration et un déploiement continu."
+  },
+  {
+    "question": "Comment se connecter à une base de données SQLite en Python ?",
+    "answer": "Vous pouvez vous connecter à une base de données SQLite en utilisant le module sqlite3 avec la commande sqlite3.connect('nom_base.db')."
+  },
+  {
+    "question": "Qu'est-ce qu'un contexte manager en Python ?",
+    "answer": "Un contexte manager est un objet qui définit des opérations à exécuter dans un bloc avec les instructions with."
+  },
+  {
+    "question": "Comment créer un contexte manager personnalisé en Python ?",
+    "answer": "Pour créer un contexte manager personnalisé, implémentez les méthodes __enter__ et __exit__ dans une classe."
+  },
+  {
+    "question": "Qu'est-ce qu'une expression régulière en Python ?",
+    "answer": "Une expression régulière est un modèle de recherche qui permet de trouver des correspondances dans des chaînes de caractères."
+  },
+  {
+    "question": "Comment utiliser le module 're' pour les expressions régulières en Python ?",
+    "answer": "Le module 're' fournit des fonctions comme re.search(), re.match() et re.findall() pour travailler avec des expressions régulières."
+  },
+  {
+    "question": "Qu'est-ce que la notion de 'closure' en Python ?",
+    "answer": "Une closure est une fonction qui capte l'environnement dans lequel elle a été créée, permettant d'accéder à des variables locales même après que la fonction externe a terminé."
+  },
+  {
+    "question": "Comment créer une closure en Python ?",
+    "answer": "Pour créer une closure, définissez une fonction imbriquée dans une autre fonction et assurez-vous que la fonction imbriquée utilise des variables de la fonction externe."
+  },
+  {
+    "question": "Qu'est-ce que 'Pythonic' signifie ?",
+    "answer": "Le terme 'Pythonic' désigne l'approche et le style recommandés dans le langage Python, favorisant la lisibilité et la simplicité."
+  },
+  {
+    "question": "Comment contribuer à un projet open-source en Python ?",
+    "answer": "Pour contribuer, trouvez un projet qui vous intéresse, lisez la documentation, et soumettez des modifications via un fork et des pull requests."
+  },
+  {
+    "question": "Qu'est-ce que le 'Documentation String' en Python ?",
+    "answer": "Un Documentation String (docstring) est une chaîne de caractères qui décrit ce qu'une fonction ou une classe fait, placée immédiatement après la définition."
+  },
+  {
+    "question": "Comment utiliser des types de données avancés en Python ?",
+    "answer": "Python propose des types de données avancés comme les defaultdict, les OrderedDict et les Counter via le module collections."
+  },
+  {
+    "question": "Qu'est-ce que 'dataclasses' en Python ?",
+    "answer": "Les dataclasses sont un moyen de créer des classes simples avec des fonctionnalités de stockage de données tout en générant automatiquement du code pour le constructeur, l'égalité, et la représentation."
+  },
+  {
+    "question": "Comment créer une dataclass en Python ?",
+    "answer": "Utilisez la déclaration @dataclass avant la définition de la classe et définissez des attributs de classe."
+  }
+]

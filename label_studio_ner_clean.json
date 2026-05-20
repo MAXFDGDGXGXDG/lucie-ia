@@ -1,0 +1,217 @@
+[
+  {
+    "text": "Où se trouve la Tour Eiffel ?",
+    "entities": [
+      {
+        "start": 16,
+        "end": 27,
+        "text": "Tour Eiffel",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "Jean va a Paris demain.",
+    "entities": [
+      {
+        "start": 0,
+        "end": 4,
+        "text": "Jean",
+        "label": "personne"
+      },
+      {
+        "start": 10,
+        "end": 15,
+        "text": "Paris",
+        "label": "lieu"
+      },
+      {
+        "start": 16,
+        "end": 22,
+        "text": "demain",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "Marie travaille chez OpenAI a San Francisco.",
+    "entities": [
+      {
+        "start": 0,
+        "end": 5,
+        "text": "Marie",
+        "label": "personne"
+      },
+      {
+        "start": 30,
+        "end": 44,
+        "text": "San Francisco.",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "La Tour Eiffel se trouve a Paris.",
+    "entities": [
+      {
+        "start": 27,
+        "end": 33,
+        "text": "Paris.",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "Le rendez-vous est vendredi a 15h.",
+    "entities": [
+      {
+        "start": 19,
+        "end": 34,
+        "text": "vendredi a 15h.",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "Lucas a visite la France en juillet.",
+    "entities": [
+      {
+        "start": 0,
+        "end": 6,
+        "text": "Lucas ",
+        "label": "personne"
+      },
+      {
+        "start": 17,
+        "end": 24,
+        "text": " France",
+        "label": "lieu"
+      },
+      {
+        "start": 28,
+        "end": 36,
+        "text": "juillet.",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "La societe Google est basee aux Etats-Unis.",
+    "entities": [
+      {
+        "start": 32,
+        "end": 43,
+        "text": "Etats-Unis.",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "Sophie a parle avec Paul au cafe.",
+    "entities": [
+      {
+        "start": 0,
+        "end": 6,
+        "text": "Sophie",
+        "label": "personne"
+      },
+      {
+        "start": 19,
+        "end": 25,
+        "text": " Paul ",
+        "label": "personne"
+      },
+      {
+        "start": 28,
+        "end": 33,
+        "text": "cafe.",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "Le concert aura lieu a Lyon samedi soir.",
+    "entities": [
+      {
+        "start": 23,
+        "end": 27,
+        "text": "Lyon",
+        "label": "lieu"
+      },
+      {
+        "start": 28,
+        "end": 40,
+        "text": "samedi soir.",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "Le document a ete signe le 26 avril 2026.",
+    "entities": [
+      {
+        "start": 27,
+        "end": 41,
+        "text": "26 avril 2026.",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "Alice habite a Marseille depuis trois ans.",
+    "entities": [
+      {
+        "start": 14,
+        "end": 25,
+        "text": " Marseille ",
+        "label": "lieu"
+      },
+      {
+        "start": 0,
+        "end": 5,
+        "text": "Alice",
+        "label": "personne"
+      },
+      {
+        "start": 31,
+        "end": 42,
+        "text": " trois ans.",
+        "label": "date"
+      }
+    ]
+  },
+  {
+    "text": "Microsoft a annonce un nouveau modele a Londres.",
+    "entities": [
+      {
+        "start": 40,
+        "end": 48,
+        "text": "Londres.",
+        "label": "lieu"
+      }
+    ]
+  },
+  {
+    "text": "Nina part pour Berlin la semaine prochaine.",
+    "entities": [
+      {
+        "start": 0,
+        "end": 4,
+        "text": "Nina",
+        "label": "personne"
+      },
+      {
+        "start": 14,
+        "end": 21,
+        "text": " Berlin",
+        "label": "lieu"
+      },
+      {
+        "start": 24,
+        "end": 42,
+        "text": " semaine prochaine",
+        "label": "date"
+      }
+    ]
+  }
+]

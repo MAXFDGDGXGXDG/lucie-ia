@@ -1,0 +1,42 @@
+[
+  {
+    "text": "Je veux apprendre l'intelligence artificielle.",
+    "label": "demande"
+  },
+  {
+    "text": "Explique-moi ce texte simplement.",
+    "label": "question"
+  },
+  {
+    "text": "Quelle est la capitale de la France ?",
+    "label": "question"
+  },
+  {
+    "text": "Je ne comprends pas cette phrase.",
+    "label": "demande"
+  },
+  {
+    "text": "Merci beaucoup pour ton aide.",
+    "label": "salutation"
+  },
+  {
+    "text": "Je cherche une réponse courte et claire.",
+    "label": "demande"
+  },
+  {
+    "text": "Peux-tu corriger cette phrase ?",
+    "label": "correction"
+  },
+  {
+    "text": "Donne-moi un exemple simple.",
+    "label": "demande"
+  },
+  {
+    "text": "Où se trouve la Tour Eiffel ?",
+    "label": "question"
+  },
+  {
+    "text": "Comment apprendre plus vite ?",
+    "label": "question"
+  }
+]
