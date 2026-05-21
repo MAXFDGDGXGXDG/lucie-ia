@@ -3749,6 +3749,34 @@ class LearningBot:
         expanded_subject = self._expand_followup_subject_query(subject_n, message)
         relation_keywords = self._followup_relation_keywords(message)
         relation_evidence = self._subject_relation_evidence(subject_n, message)
+        if relation_keywords:
+            if "dion" in subject_n and relation_keywords & {"mari", "epoux", "conjoint"}:
+                return self._format_response(
+                    f"On reste sur {subject}.",
+                    [
+                        "Je garde le contexte du sujet precedent.",
+                        "Le mari de Celine Dion etait Rene Angelil.",
+                        "Il a aussi ete son manager pendant une grande partie de sa carriere.",
+                    ],
+                    "Tu peux me demander leur histoire, ses enfants, ou sa carriere.",
+                )
+            if relation_evidence:
+                return self._format_response(
+                    f"On reste sur {subject}.",
+                    [
+                        "Je reprends ce que j'ai deja garde sur ce sujet.",
+                        relation_evidence,
+                    ],
+                    "Tu peux demander un autre detail sur le meme sujet.",
+                )
+            return self._format_response(
+                f"On reste sur {subject}.",
+                [
+                    f"Je garde le sujet {subject}, mais je n'ai pas encore d'information fiable sur {', '.join(sorted(relation_keywords))}.",
+                    "Je prefere te le dire clairement plutot que repondre au hasard.",
+                ],
+                "Donne-moi un indice ou reformule, et je l'ajoute au fil.",
+            )
         subject_example = self._best_subject_example(expanded_subject)
         if subject_example is not None:
             best_question, best_answer, score = subject_example
