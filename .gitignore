@@ -21,6 +21,6 @@ fresh_memory*.json
 tmp_memory.json
 _tmp_dify_cfg.json
 .cloud_test_data/
+codex_thinking_qa.json
 
 *.FCStd1
-

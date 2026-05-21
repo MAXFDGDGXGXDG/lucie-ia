@@ -50,6 +50,7 @@ EXTRA_QA_FILE_NAMES = (
     "mega_qa_pack.json",
     "lucie_extra_questions.json",
     "lucie_extra_questions_2.json",
+    "codex_thinking_qa.json",
 )
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
     {"question": "bonjour", "answer": "Bonjour !"},

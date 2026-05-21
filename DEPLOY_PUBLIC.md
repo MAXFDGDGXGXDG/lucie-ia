@@ -37,3 +37,16 @@ python cloud_server.py
 ## Important
 
 Ne mets pas ton PC personnel directement public sur internet. Utilise un hebergeur ou un tunnel temporaire pour tester.
+
+## Ajouter le dataset CodeX-2M-Thinking
+
+Le dataset Hugging Face `Modotte/CodeX-2M-Thinking` contient plus de deux millions d'exemples. Il ne faut pas le telecharger automatiquement au demarrage du site public.
+
+Pour importer une petite partie dans Lucie:
+
+```bash
+python -m pip install datasets
+python import_codex_thinking.py --limit 2000 --output codex_thinking_qa.json
+```
+
+Le fichier `codex_thinking_qa.json` est charge automatiquement par Lucie s'il existe.
