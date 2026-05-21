@@ -1600,18 +1600,21 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
-        if path.startswith("/api/") and not self._authorized():
-            self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
-            return
         body = self._read_json_body()
 
         if path == "/api/chat":
             self._handle_chat(body)
             return
         if path == "/api/teach":
+            if not self._authorized():
+                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
             self._handle_teach(body)
             return
         if path == "/api/document":
+            if not self._authorized():
+                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
             self._handle_document(body)
             return
 
