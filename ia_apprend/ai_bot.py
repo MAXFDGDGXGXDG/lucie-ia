@@ -1131,28 +1131,28 @@ class LearningBot:
             return []
         return self.relation_extractor.predict(message, entities.entities)
 
-    def set_pending_action(self, action: str, context: str | None = None) -> None:
-        self.pending_action = normalize(action) or None
-        self.pending_context = context.strip() if context else None
+    def _save_runtime_state_if_enabled(self) -> None:
+        enabled = os.getenv("LUCIE_SAVE_RUNTIME_STATE", "").strip().lower()
+        if enabled not in {"1", "true", "yes", "on"}:
+            return
         try:
             self.save()
         except OSError:
             pass
+
+    def set_pending_action(self, action: str, context: str | None = None) -> None:
+        self.pending_action = normalize(action) or None
+        self.pending_context = context.strip() if context else None
+        self._save_runtime_state_if_enabled()
 
     def clear_pending_action(self) -> None:
         self.pending_action = None
         self.pending_context = None
-        try:
-            self.save()
-        except OSError:
-            pass
+        self._save_runtime_state_if_enabled()
 
     def refresh_conversation_summary(self) -> None:
         self.conversation_summary = self._build_conversation_summary()
-        try:
-            self.save()
-        except OSError:
-            pass
+        self._save_runtime_state_if_enabled()
 
     def remember_note(self, note: str) -> None:
         self.remember_note_from_source("conversation", note)
@@ -1169,10 +1169,7 @@ class LearningBot:
         if note_n not in bucket:
             bucket.append(note_n)
             self.memory_sources[source_key] = bucket[-20:]
-        try:
-            self.save()
-        except OSError:
-            pass
+        self._save_runtime_state_if_enabled()
 
     def remember_preference(self, key: str, value: str) -> None:
         key_n = normalize(key)
@@ -1194,10 +1191,7 @@ class LearningBot:
         if note_n not in bucket:
             bucket.append(note_n)
             self.subject_memory[subject_n] = bucket[-10:]
-            try:
-                self.save()
-            except OSError:
-                pass
+            self._save_runtime_state_if_enabled()
 
     def add_document(self, title: str, content: str) -> None:
         title_n = " ".join(str(title).strip().split()) or f"Document {len(self.documents) + 1}"
@@ -1433,6 +1427,11 @@ class LearningBot:
             self.remember_subject("math", self._summarize_for_memory(message, calculation))
             self._remember(message, calculation)
             return calculation
+
+        local_hint = self._find_exact_or_partial(message_n)
+        if local_hint:
+            self._remember(message, local_hint)
+            return local_hint
 
         subject = self._resolve_subject_context(message, self._detect_subject(message))
 
@@ -4286,10 +4285,7 @@ class LearningBot:
         if len(self.history) > MAX_HISTORY_TURNS:
             self.history = self.history[-MAX_HISTORY_TURNS:]
         self.conversation_summary = self._build_conversation_summary()
-        try:
-            self.save()
-        except OSError:
-            pass
+        self._save_runtime_state_if_enabled()
 
     def _compose_local_answer(
         self,
@@ -4718,7 +4714,7 @@ class LearningBot:
     def _find_exact(self, message_n: str) -> str | None:
         return self.example_index.get(message_n)
 
-    def _candidate_examples(self, message_n: str, limit: int = 800) -> list[dict[str, str]]:
+    def _candidate_examples(self, message_n: str, limit: int = 120) -> list[dict[str, str]]:
         tokens = [
             token
             for token in tokenize(message_n)
@@ -4733,6 +4729,9 @@ class LearningBot:
                 hits[index] += 1
 
         if not hits:
+            return []
+
+        if len(tokens) >= 2 and hits.most_common(1)[0][1] < 2 and len(hits) > 200:
             return []
 
         return [
