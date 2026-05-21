@@ -39,7 +39,7 @@ def prepare_cloud_data() -> Path:
     for name in DATA_FILES:
         src = APP_ROOT / name
         dst = data_root / name
-        if src.exists() and not dst.exists():
+        if src.exists():
             shutil.copy2(src, dst)
 
     return target_memory
