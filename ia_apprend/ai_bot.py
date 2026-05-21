@@ -1356,8 +1356,6 @@ class LearningBot:
         if not message_n:
             return "Ecris une question, ou utilise /teach question | reponse."
 
-        subject = self._resolve_subject_context(message, self._detect_subject(message))
-
         if message_n.startswith("/doc") or message_n.startswith("/document"):
             title, content = self._parse_document_command(message)
             self.add_document(title, content)
@@ -1371,6 +1369,7 @@ class LearningBot:
         if self.pending_action == "question":
             target = message.strip()
             self.clear_pending_action()
+            subject = self._resolve_subject_context(message, self._detect_subject(message))
             return self._answer_question(target, subject)
 
         if self.pending_action == "explain":
