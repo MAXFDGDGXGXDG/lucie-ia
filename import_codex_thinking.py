@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,11 @@ def clean_text(value: Any) -> str:
             return clean_text(value.get("content"))
         return json.dumps(value, ensure_ascii=False)
     return " ".join(str(value).strip().split())
+
+
+def strip_thinking_blocks(text: str) -> str:
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
+    return cleaned or text.strip()
 
 
 def extract_from_messages(messages: Any) -> tuple[str, str]:
@@ -118,6 +124,7 @@ def main() -> None:
         question, answer = extract_qa(row)
         if not answer:
             continue
+        answer = strip_thinking_blocks(answer)
         if not question:
             question = make_short_question(answer, index)
         question_key = question.lower()
