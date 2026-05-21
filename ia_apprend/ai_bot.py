@@ -1471,14 +1471,6 @@ class LearningBot:
             self.set_pending_action("summary", message)
             return "D'accord. Envoie-moi le texte a resumer."
 
-        prediction = self.predict_intent(message)
-        entities = self.predict_entities(message)
-        relations = self.predict_relations(message)
-        knowledge = self.predict_knowledge(message)
-        document_knowledge = self.predict_documents(message)
-        strong_knowledge = bool(knowledge and knowledge[0].score >= 0.25)
-        self._capture_memory_from_user(message, subject, prediction, entities, relations)
-
         if subject and self._is_topic_opening_message(message_n):
             response = self._answer_topic_opening(message, subject)
             self._remember_subject(subject, message, response)
@@ -1491,24 +1483,37 @@ class LearningBot:
             self._remember(message, response)
             return response
 
-        document_hint = self._answer_from_documents(message)
-        if document_hint and self._is_document_query(message_n):
-            return document_hint
+        if self._is_document_query(message_n):
+            document_hint = self._answer_from_documents(message)
+            if document_hint:
+                return document_hint
+
         local_hint = self._find_exact_or_partial(message_n)
         if local_hint:
             self._remember_subject(subject, message, local_hint)
             self._remember(message, local_hint)
             return local_hint
+
         memory_hint = self._answer_from_memory(message_n)
         if memory_hint:
             return memory_hint
+
         subject_hint = self._answer_from_subject_memory(subject, message_n)
         if subject_hint:
             return subject_hint
+
         if self._is_direct_question(message_n):
             response = self._answer_question(message, subject)
             self._remember(message, response)
             return response
+
+        prediction = self.predict_intent(message)
+        entities = self.predict_entities(message)
+        relations = self.predict_relations(message)
+        knowledge = self.predict_knowledge(message)
+        document_knowledge = self.predict_documents(message)
+        strong_knowledge = bool(knowledge and knowledge[0].score >= 0.25)
+        self._capture_memory_from_user(message, subject, prediction, entities, relations)
         if strong_knowledge:
             self._remember_subject(subject, message, "knowledge")
             response = self._compose_knowledge_answer(message, entities, relations, knowledge)
