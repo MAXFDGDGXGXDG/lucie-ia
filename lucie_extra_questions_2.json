@@ -218,5 +218,7 @@
   {"question":"comment rapprocher lucie de chatgpt","answer":"Il faut un meilleur modele de langage, plus de connaissances, une bonne memoire, des tests et une interface stable."},
   {"question":"c'est quoi une hallucination d'ia","answer":"Une hallucination arrive quand une IA invente une reponse qui semble plausible mais qui est fausse."},
   {"question":"comment reduire les hallucinations","answer":"Utilise des sources, garde le contexte, demande a l'IA de dire quand elle ne sait pas et ajoute des tests."},
-  {"question":"que dois tu faire si tu ne sais pas","answer":"Je dois le dire clairement, proposer une piste fiable et demander du contexte si necessaire."}
+  {"question":"que dois tu faire si tu ne sais pas","answer":"Je dois le dire clairement, proposer une piste fiable et demander du contexte si necessaire."},
+  {"question":"donne un exemple de comparaison","answer":"Exemple de comparaison: Python est plus simple pour debuter, alors que JavaScript est meilleur pour rendre une page web interactive. L'usage change selon le besoin."},
+  {"question":"comment faire","answer":"Je peux t'aider, mais il faut le sujet exact. Dis par exemple: comment faire un site, comment faire un calcul, ou comment faire un expose."}
 ]

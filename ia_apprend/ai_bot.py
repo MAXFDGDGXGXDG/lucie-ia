@@ -54,6 +54,10 @@ EXTRA_QA_FILE_NAMES = (
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
     {"question": "bonjour", "answer": "Bonjour !"},
     {
+        "question": "comment faire",
+        "answer": "Je peux donner les \u00e9tapes: entr\u00e9e, traitement, sortie, avec un exemple. Precise le sujet exact et je l'adapte.",
+    },
+    {
         "question": "comment tu t'appelles",
         "answer": "Je suis une IA qui apprend avec le contexte et la memoire.",
     },
@@ -956,6 +960,7 @@ class LearningBot:
             _load_qa_seed(memory_path.parent.parent),
             _load_qa_model(memory_path.parent.parent),
             _load_extra_qa_examples(memory_path.parent.parent),
+            [item.copy() for item in DEFAULT_EXAMPLES],
             _load_examples(data.get("examples", [])),
         )
         bot.history = _load_history(data.get("history", []))
@@ -1334,6 +1339,11 @@ class LearningBot:
             self.clear_pending_action()
             return self._answer_summary(target)
 
+        exact_answer = self._find_exact(message_n)
+        if exact_answer is not None:
+            self._remember(message, exact_answer)
+            return exact_answer
+
         conversation_control = self._answer_conversation_control(message)
         if conversation_control is not None:
             self._remember(message, conversation_control)
@@ -1349,12 +1359,6 @@ class LearningBot:
             key, value = preference_command
             self.remember_preference(key, value)
             return f"C'est notÃ©. Je retiens ta prÃ©fÃ©rence pour {key}."
-
-
-        exact_answer = self._find_exact(message_n)
-        if exact_answer is not None:
-            self._remember(message, exact_answer)
-            return exact_answer
 
         direct_message = self._answer_direct_message(message)
         if direct_message is not None:
@@ -1434,6 +1438,10 @@ class LearningBot:
         if document_hint and self._is_document_query(message_n):
             return document_hint
         local_hint = self._find_exact_or_partial(message_n)
+        if local_hint:
+            self._remember_subject(subject, message, local_hint)
+            self._remember(message, local_hint)
+            return local_hint
         memory_hint = self._answer_from_memory(message_n)
         if memory_hint:
             return memory_hint
@@ -1452,10 +1460,6 @@ class LearningBot:
 
         client = self._make_client()
         if client is None:
-            if local_hint:
-                self._remember_subject(subject, message, local_hint)
-                self._remember(message, local_hint)
-                return local_hint
             answer = self._compose_local_answer(
                 message,
                 prediction,
@@ -2898,6 +2902,19 @@ class LearningBot:
             self._remember_subject("math", cleaned, calculation)
             return calculation
 
+        learned_answer = self._find_exact_or_partial(normalize(cleaned))
+        if learned_answer:
+            self._remember(cleaned, learned_answer)
+            return learned_answer
+
+        nearest = self._nearest_example(cleaned)
+        if nearest:
+            best_question, best_answer, score = nearest
+            overlap = _token_overlap_score(normalize(cleaned), normalize(best_question))
+            if score >= 0.68 and overlap >= 2:
+                self._remember(cleaned, best_answer)
+                return best_answer
+
         client = self._make_client()
         if client is not None:
             input_override = (
@@ -3518,6 +3535,12 @@ class LearningBot:
                 "Moli?re est un grand auteur de th??tre fran?ais du XVIIe si?cle, connu pour "
                 "ses com?dies."
             )
+        if "exemple" in lower and "compar" in lower:
+            return (
+                "Exemple de comparaison: Python est plus simple pour debuter en programmation, "
+                "alors que JavaScript est surtout utilise pour rendre les pages web interactives. "
+                "L'usage n'est donc pas le meme selon le cas reel."
+            )
         return None
 
     def _question_kind(self, message: str) -> str:
@@ -4032,6 +4055,7 @@ class LearningBot:
                 )
 
             if not subject_n:
+                return None
                 generic_answers = {
                     "definition": "Une définition dit ce que c'est, puis elle peut ajouter à quoi ça sert. Par exemple, un serveur est un programme qui répond à des requêtes.",
                     "why": "Une réponse en 'pourquoi' explique la cause principale, puis éventuellement l'intérêt ou l'effet. Par exemple, on explique pourquoi le ciel est bleu avec la lumière.",
@@ -4614,7 +4638,8 @@ class LearningBot:
                 best_score = score
                 best_answer = item["answer"]
                 best_question = item["question"]
-        if best_score >= 0.52:
+        overlap = _token_overlap_score(message_n, best_question or "")
+        if best_score >= 0.9 or (best_score >= 0.72 and overlap >= 2):
             if best_question and best_answer:
                 return best_answer
         return None

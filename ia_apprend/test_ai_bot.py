@@ -637,6 +637,30 @@ class LearningBotTests(unittest.TestCase):
             self.assertIn("scientifique", answer.lower())
             self.assertTrue("radioactivite" in answer.lower() or "nobel" in answer.lower())
 
+    def test_extra_question_pack_2_answers_without_generic_detour(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app_root = Path(temp_dir) / "lucie"
+            app_root.mkdir()
+            root = Path(ai_bot.__file__).resolve().parent.parent
+            for name in ("lucie_extra_questions.json", "lucie_extra_questions_2.json"):
+                (app_root / name).write_text((root / name).read_text(encoding="utf-8"), encoding="utf-8")
+            memory_path = app_root / "ia_apprend" / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            checks = {
+                "pourquoi localhost n'est pas visible sur google": "localhost",
+                "comment rapprocher lucie de chatgpt": "modele",
+                "pourquoi mon servo tremble": "servo",
+                "c est quoi une hallucination d ia": "hallucination",
+            }
+
+            for question, expected in checks.items():
+                with self.subTest(question=question):
+                    answer = bot.answer(question).lower()
+                    self.assertIn(expected, answer)
+                    self.assertNotIn("une reponse en 'pourquoi'", answer)
+                    self.assertNotIn("fonctionnement : chats", answer)
+
 
 if __name__ == "__main__":
     unittest.main()
