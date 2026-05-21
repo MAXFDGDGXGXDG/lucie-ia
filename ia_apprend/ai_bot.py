@@ -90,6 +90,33 @@ FR_WORD_KEEP = {
     "dify",
     "llm",
 }
+EXAMPLE_INDEX_STOP_WORDS = {
+    "alors",
+    "avec",
+    "cette",
+    "dans",
+    "des",
+    "donc",
+    "elle",
+    "est",
+    "ils",
+    "les",
+    "mes",
+    "mon",
+    "ont",
+    "par",
+    "pas",
+    "pour",
+    "que",
+    "qui",
+    "quoi",
+    "son",
+    "sur",
+    "tes",
+    "ton",
+    "une",
+    "vous",
+}
 
 MATH_LEAD_INS = (
     "calcule",
@@ -891,6 +918,8 @@ class LearningBot:
     memory_path: Path
     model: str = DEFAULT_MODEL
     examples: list[dict[str, str]] = field(default_factory=list)
+    example_index: dict[str, str] = field(default_factory=dict, init=False, repr=False)
+    example_token_index: dict[str, set[int]] = field(default_factory=dict, init=False, repr=False)
     history: list[ConversationTurn] = field(default_factory=list)
     documents: list[DocumentMemory] = field(default_factory=list)
     memory_notes: list[str] = field(default_factory=list)
@@ -925,6 +954,7 @@ class LearningBot:
             bot.entity_extractor = _load_entity_extractor(memory_path.parent.parent)
             bot.relation_extractor = _load_relation_extractor(memory_path.parent.parent)
             bot.dify_client = _load_dify_client()
+            bot._rebuild_example_indexes()
             return bot
 
         try:
@@ -943,6 +973,7 @@ class LearningBot:
             bot.entity_extractor = _load_entity_extractor(memory_path.parent.parent)
             bot.relation_extractor = _load_relation_extractor(memory_path.parent.parent)
             bot.dify_client = _load_dify_client()
+            bot._rebuild_example_indexes()
             return bot
         except OSError as exc:
             bot.examples = _merge_examples(
@@ -956,6 +987,7 @@ class LearningBot:
             bot.entity_extractor = _load_entity_extractor(memory_path.parent.parent)
             bot.relation_extractor = _load_relation_extractor(memory_path.parent.parent)
             bot.dify_client = _load_dify_client()
+            bot._rebuild_example_indexes()
             return bot
 
         bot.examples = _merge_examples(
@@ -983,7 +1015,24 @@ class LearningBot:
         bot.entity_extractor = _load_entity_extractor(memory_path.parent.parent)
         bot.relation_extractor = _load_relation_extractor(memory_path.parent.parent)
         bot.dify_client = _load_dify_client()
+        bot._rebuild_example_indexes()
         return bot
+
+    def _rebuild_example_indexes(self) -> None:
+        self.example_index = {}
+        token_index: defaultdict[str, set[int]] = defaultdict(set)
+        for index, item in enumerate(self.examples):
+            question = normalize(item.get("question", ""))
+            answer = item.get("answer", "").strip()
+            if not question or not answer:
+                continue
+            item["question"] = question
+            item["answer"] = answer
+            self.example_index[question] = answer
+            for token in set(tokenize(question)):
+                if len(token) > 2 and token not in EXAMPLE_INDEX_STOP_WORDS:
+                    token_index[token].add(index)
+        self.example_token_index = dict(token_index)
 
     def save(self) -> None:
         self.memory_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1023,9 +1072,15 @@ class LearningBot:
         for item in self.examples:
             if item["question"] == question_n:
                 item["answer"] = answer_n
+                self.example_index[question_n] = answer_n
                 return
 
         self.examples.append({"question": question_n, "answer": answer_n})
+        index = len(self.examples) - 1
+        self.example_index[question_n] = answer_n
+        for token in set(tokenize(question_n)):
+            if len(token) > 2 and token not in EXAMPLE_INDEX_STOP_WORDS:
+                self.example_token_index.setdefault(token, set()).add(index)
 
     def list_knowledge(self) -> list[tuple[str, str]]:
         return [(item["question"], item["answer"]) for item in self.examples]
@@ -4634,7 +4689,7 @@ class LearningBot:
         best_answer = None
         best_question = None
         best_score = 0.0
-        for item in self.examples:
+        for item in self._candidate_examples(message_n):
             score = _text_similarity(message_n, item["question"])
             if score > best_score:
                 best_score = score
@@ -4649,7 +4704,7 @@ class LearningBot:
     def _nearest_example(self, message: str) -> tuple[str, str, float] | None:
         message_n = normalize(message)
         best: tuple[str, str, float] | None = None
-        for item in self.examples:
+        for item in self._candidate_examples(message_n):
             score = _text_similarity(message_n, item["question"])
             candidate = (item["question"], item["answer"], score)
             if best is None or score > best[2]:
@@ -4657,10 +4712,30 @@ class LearningBot:
         return best
 
     def _find_exact(self, message_n: str) -> str | None:
-        for item in self.examples:
-            if item["question"] == message_n:
-                return item["answer"]
-        return None
+        return self.example_index.get(message_n)
+
+    def _candidate_examples(self, message_n: str, limit: int = 800) -> list[dict[str, str]]:
+        tokens = [
+            token
+            for token in tokenize(message_n)
+            if len(token) > 2 and token not in EXAMPLE_INDEX_STOP_WORDS
+        ]
+        if not tokens:
+            return self.examples[:limit]
+
+        hits: Counter[int] = Counter()
+        for token in tokens:
+            for index in self.example_token_index.get(token, set()):
+                hits[index] += 1
+
+        if not hits:
+            return []
+
+        return [
+            self.examples[index]
+            for index, _ in hits.most_common(limit)
+            if 0 <= index < len(self.examples)
+        ]
 
     def _clean_answer(self, text: str) -> str:
         cleaned = text.strip()

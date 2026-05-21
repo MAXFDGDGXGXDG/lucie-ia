@@ -1551,6 +1551,24 @@ class AppHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
 
+    def _robot_status_payload(self) -> dict[str, object]:
+        enabled = os.getenv("ENABLE_ROBOT_STATUS", "").strip().lower()
+        if enabled in {"1", "true", "yes", "on"}:
+            return self.bot.robot_bridge_status()
+        return {
+            "ok": False,
+            "message": "Robot status disabled.",
+            "connected": False,
+            "serial_port": "",
+            "board_type": "",
+            "last_action": "disabled",
+            "last_payload": {},
+            "last_at": 0.0,
+            "last_error": "",
+            "command_count": 0,
+            "uptime_seconds": 0.0,
+        }
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/":
@@ -1592,7 +1610,7 @@ class AppHandler(BaseHTTPRequestHandler):
           "last_subject": self.bot.last_subject,
           "conversation_summary": self.bot.get_conversation_summary(),
           "subject_briefs": self.bot.list_subject_briefs(),
-          "robot_status": self.bot.robot_bridge_status(),
+          "robot_status": self._robot_status_payload(),
         }
             )
             return
@@ -1645,12 +1663,9 @@ class AppHandler(BaseHTTPRequestHandler):
                     }
                 )
                 return
-            subject = self.bot._detect_subject(message)
-            prediction = self.bot.predict_intent(message)
-            entities = self.bot.predict_entities(message)
-            knowledge = self.bot.predict_knowledge(message)
             answer_text = self.bot.answer(message)
             if not self.bot.api_available:
+                subject = self.bot._detect_subject(message)
                 self.bot._remember(message, answer_text)
                 self.bot._remember_subject(subject, message, answer_text)
         except ValueError as exc:
@@ -1678,34 +1693,10 @@ class AppHandler(BaseHTTPRequestHandler):
                 "last_subject": self.bot.last_subject,
                 "conversation_summary": self.bot.get_conversation_summary(),
                 "subject_briefs": self.bot.list_subject_briefs(),
-                "robot_status": self.bot.robot_bridge_status(),
-                "intent": None
-                if prediction is None
-                else {
-                    "label": prediction.label,
-                    "confidence": round(prediction.confidence, 3),
-                },
-                "entities": []
-                if entities is None
-                else [
-                    {
-                        "start": entity.start,
-                        "end": entity.end,
-                        "text": entity.text,
-                        "label": entity.label,
-                    }
-                    for entity in entities.entities
-                ],
-                "knowledge": []
-                if not knowledge
-                else [
-                    {
-                        "content": item.content,
-                        "score": round(item.score, 3),
-                        "source": item.source,
-                    }
-                    for item in knowledge
-                ],
+                "robot_status": self._robot_status_payload(),
+                "intent": None,
+                "entities": [],
+                "knowledge": [],
                 "pending_action": self.bot.pending_action,
             }
         )
