@@ -1145,7 +1145,7 @@ HTML_PAGE = """<!doctype html>
         "Ce qu'il faudrait corriger :",
         "",
         "Envoye depuis l'app Lucie.",
-      ].join("\n");
+      ].join(String.fromCharCode(10));
       const subject = `Probleme Lucie - ${report.title}`.slice(0, 120);
       const mailto = `mailto:kleibermaxence@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.slice(0, 6000))}`;
       const link = document.createElement("a");
@@ -1477,67 +1477,6 @@ HTML_PAGE = """<!doctype html>
     renderChatList();
     input.focus();
     loadStatus();
-  </script>
-  <script>
-    (() => {
-      const form = document.getElementById("chat-form");
-      const input = document.getElementById("message");
-      const chatLog = document.getElementById("chat-log");
-      const status = document.getElementById("status");
-      if (!form || !input || !chatLog) return;
-
-      function setStatusSafe(text) {
-        if (status) {
-          status.innerHTML = `<span class="dot"></span><span>${text}</span>`;
-        }
-      }
-
-      function bubble(role, text) {
-        const item = document.createElement("div");
-        item.className = `bubble ${role}`;
-        item.textContent = String(text || "");
-        chatLog.appendChild(item);
-        chatLog.scrollTop = chatLog.scrollHeight;
-        return item;
-      }
-
-      async function sendMessage(event) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        const message = input.value.trim();
-        if (!message) return;
-        input.value = "";
-        bubble("user", message);
-        setStatusSafe("Analyse...");
-        try {
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message }),
-          });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || "Erreur serveur");
-          }
-          bubble("assistant", data.answer || "OK");
-          setStatusSafe("Pret");
-        } catch (error) {
-          bubble("assistant", `Erreur: ${String(error.message || error)}`);
-          setStatusSafe("Erreur");
-        } finally {
-          input.focus();
-        }
-      }
-
-      form.addEventListener("submit", sendMessage, true);
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" && !event.shiftKey) {
-          event.preventDefault();
-          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-        }
-      }, true);
-      setStatusSafe("Pret");
-    })();
   </script>
 </body>
 </html>
