@@ -54,6 +54,7 @@ EXTRA_QA_FILE_NAMES = (
     "gsm8k_qa.json",
     "the_stack_code_qa.json",
     "python_code_instructions_qa.json",
+    "python_code_instructions_fr_qa.json",
 )
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
     {"question": "bonjour", "answer": "Bonjour !"},
