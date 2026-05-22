@@ -53,6 +53,7 @@ EXTRA_QA_FILE_NAMES = (
     "codex_thinking_qa.json",
     "gsm8k_qa.json",
     "the_stack_code_qa.json",
+    "python_code_instructions_qa.json",
 )
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
     {"question": "bonjour", "answer": "Bonjour !"},
@@ -1234,9 +1235,27 @@ class LearningBot:
         if not raw:
             return "Envoie-moi un calcul clair, par exemple 2 + 2 ou 12 * (3 + 4)."
 
+        raw_n = normalize(raw)
+        code_request_terms = (
+            "code",
+            "fonction",
+            "function",
+            "python",
+            "script",
+            "programme",
+            "program",
+            "generate",
+            "create",
+            "write",
+            "list comprehension",
+            "class",
+        )
+        if any(term in raw_n for term in code_request_terms) and not re.search(r"\d+\s*[+\-*/%^]\s*\d+", raw_n):
+            return None
+
         expression, display = self._extract_math_expression(raw, keep_display=True)
         if not expression:
-            if any(phrase in normalize(raw) for phrase in MATH_LEAD_INS):
+            if any(phrase in raw_n for phrase in MATH_LEAD_INS):
                 return "Je peux calculer, mais j'ai besoin de l'expression exacte. Essaie par exemple 2 + 2 ou 12 * (3 + 4)."
             return None
 
