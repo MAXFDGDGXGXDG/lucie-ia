@@ -162,6 +162,12 @@ def main() -> None:
         if len(examples) >= args.limit:
             break
 
+    if not examples:
+        raise SystemExit(
+            "Aucun exemple importe. Si le dataset est gated, connecte Hugging Face avec HF_TOKEN "
+            "ou `hf auth login`, puis relance la commande."
+        )
+
     args.output.write_text(
         json.dumps(examples, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
