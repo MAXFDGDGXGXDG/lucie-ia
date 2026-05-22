@@ -23,5 +23,6 @@ _tmp_dify_cfg.json
 .cloud_test_data/
 codex_thinking_qa.json
 gsm8k_qa.json
+local_personal_knowledge.json
 
 *.FCStd1

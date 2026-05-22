@@ -56,6 +56,7 @@ EXTRA_QA_FILE_NAMES = (
     "python_code_instructions_qa.json",
     "python_code_instructions_fr_qa.json",
     "arxiv_classification_fr_qa.json",
+    "local_personal_knowledge.json",
 )
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
     {"question": "bonjour", "answer": "Bonjour !"},
@@ -4664,6 +4665,18 @@ class LearningBot:
         return False
 
     def _clarifying_question(self, message_n: str) -> str:
+        if self.last_subject and (
+            self._looks_like_reference_followup(message_n)
+            or message_n in {"suite", "continue", "explique", "detaille", "exemple", "pourquoi", "comment"}
+        ):
+            return self._format_response(
+                "Je garde le fil.",
+                [
+                    f"On parlait de {self.last_subject}.",
+                    "Tu veux une definition, un exemple, une suite, un plan, ou une action concrete ?",
+                ],
+                "Reponds avec le type de reponse que tu veux, ou donne-moi un nouveau sujet.",
+            )
         if any(word in message_n for word in ("corrige", "reformule")):
             return self._format_response(
                 "Je peux corriger ça.",
