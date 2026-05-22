@@ -50,6 +50,7 @@ EXTRA_QA_FILE_NAMES = (
     "mega_qa_pack.json",
     "lucie_extra_questions.json",
     "lucie_extra_questions_2.json",
+    "lucie_core_knowledge_fr.json",
     "codex_thinking_qa.json",
     "gsm8k_qa.json",
     "the_stack_code_qa.json",
@@ -1255,10 +1256,22 @@ class LearningBot:
         )
         if any(term in raw_n for term in code_request_terms) and not re.search(r"\d+\s*[+\-*/%^]\s*\d+", raw_n):
             return None
+        has_math_lead = any(phrase in raw_n for phrase in MATH_LEAD_INS)
+        has_math_operator = bool(
+            re.search(
+                r"\d+\s*[+\-*/%^]\s*\d+|\b(sqrt|abs|round|pow|ceil|floor)\s*\(|"
+                r"\d+\s+puissance\s+(?:de\s+)?\d+|\d+\s*%\s*(?:de|du|des)\s*\d+|"
+                r"\d+\s+(?:fois|multiplie(?:r)?\s+par|x)\s+\d+",
+                raw_n,
+            )
+        )
+        looks_like_plain_number = bool(re.fullmatch(r"\s*-?\d+(?:[.,]\d+)?\s*", raw_n))
+        if not (has_math_lead or has_math_operator or looks_like_plain_number):
+            return None
 
         expression, display = self._extract_math_expression(raw, keep_display=True)
         if not expression:
-            if any(phrase in raw_n for phrase in MATH_LEAD_INS):
+            if has_math_lead:
                 return "Je peux calculer, mais j'ai besoin de l'expression exacte. Essaie par exemple 2 + 2 ou 12 * (3 + 4)."
             return None
 

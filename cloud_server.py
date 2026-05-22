@@ -20,6 +20,7 @@ DATA_FILES = (
     "mega_qa_pack.json",
     "lucie_extra_questions.json",
     "lucie_extra_questions_2.json",
+    "lucie_core_knowledge_fr.json",
     "codex_thinking_qa.json",
     "gsm8k_qa.json",
     "the_stack_code_qa.json",
