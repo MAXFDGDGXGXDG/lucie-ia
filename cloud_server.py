@@ -22,6 +22,7 @@ DATA_FILES = (
     "lucie_extra_questions_2.json",
     "codex_thinking_qa.json",
     "gsm8k_qa.json",
+    "the_stack_code_qa.json",
     "label_studio_training.json",
     "label_studio_ner_clean.json",
     "label_studio_relations_clean.json",
