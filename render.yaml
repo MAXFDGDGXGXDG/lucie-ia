@@ -11,3 +11,5 @@ services:
         value: 0.0.0.0
       - key: LUCIE_DATA_DIR
         value: /tmp/lucie
+      - key: PUBLIC_BASE_URL
+        value: https://lucie-ia.onrender.com
