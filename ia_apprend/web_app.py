@@ -1755,6 +1755,7 @@ ADMIN_PAGE = """<!doctype html>
     h1 { font-size: 22px; }
     h2 { font-size: 18px; margin-bottom: 12px; }
     main { width: min(1180px, calc(100% - 32px)); margin: 24px auto 48px; display: grid; gap: 18px; }
+    body.admin-locked main { display: none; }
     .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .toolbar input { width: min(420px, 100%); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; font: inherit; }
     button, a.button { border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
@@ -1771,10 +1772,14 @@ ADMIN_PAGE = """<!doctype html>
     textarea, input[type="text"] { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px; font: inherit; resize: vertical; }
     form { display: grid; gap: 10px; }
     .summary { white-space: pre-wrap; line-height: 1.5; color: #374151; }
+    .lock-screen { width: min(520px, calc(100% - 32px)); margin: 80px auto; display: grid; gap: 16px; text-align: center; }
+    .lock-card { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 28px; box-shadow: 0 18px 60px rgba(15, 23, 42, .08); display: grid; gap: 14px; }
+    .lock-card input { width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 14px; font: inherit; text-align: center; font-size: 20px; letter-spacing: 4px; }
+    body:not(.admin-locked) .lock-screen { display: none; }
     @media (max-width: 840px) { .grid, .columns { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } }
   </style>
 </head>
-<body>
+<body class="admin-locked">
   <header>
     <div>
       <h1>Admin Lucie</h1>
@@ -1787,7 +1792,16 @@ ADMIN_PAGE = """<!doctype html>
       <a class="button" href="/">Retour au chat</a>
     </div>
   </header>
-  <main>
+  <section class="lock-screen" id="lock-screen">
+    <div class="lock-card">
+      <h2>Code admin</h2>
+      <p class="muted">Entre le code pour acceder a la page Maxence.</p>
+      <input id="lock-code" type="password" inputmode="numeric" placeholder="Code">
+      <button id="unlock" class="primary" type="button">Acceder a l'admin</button>
+      <div id="lock-status" class="muted"></div>
+    </div>
+  </section>
+  <main id="admin-content" aria-hidden="true">
     <section class="grid">
       <div class="card stat"><span>Souvenirs</span><strong id="memory-count">0</strong></div>
       <div class="card stat"><span>Sujets</span><strong id="subjects-count">0</strong></div>
@@ -1822,8 +1836,13 @@ ADMIN_PAGE = """<!doctype html>
   </main>
   <script>
     const keyInput = document.getElementById("api-key");
+    const lockCodeInput = document.getElementById("lock-code");
+    const lockStatus = document.getElementById("lock-status");
     const saved = localStorage.getItem("lucie_admin_code");
-    if (saved) keyInput.value = saved;
+    if (saved) {
+      keyInput.value = saved;
+      lockCodeInput.value = saved;
+    }
 
     function headers(extra = {}) {
       const code = keyInput.value.trim();
@@ -1836,11 +1855,23 @@ ADMIN_PAGE = """<!doctype html>
       document.getElementById(id).textContent = value;
     }
     async function loadAdmin() {
-      const response = await fetch("/api/admin/overview", { headers: headers() });
-      if (!response.ok) {
-        document.getElementById("summary").textContent = "Cle admin manquante ou serveur indisponible.";
+      const code = keyInput.value.trim();
+      if (!code) {
+        document.body.classList.add("admin-locked");
+        document.getElementById("admin-content").setAttribute("aria-hidden", "true");
+        lockStatus.textContent = "Code obligatoire.";
         return;
       }
+      const response = await fetch("/api/admin/overview", { headers: headers() });
+      if (!response.ok) {
+        document.body.classList.add("admin-locked");
+        document.getElementById("admin-content").setAttribute("aria-hidden", "true");
+        lockStatus.textContent = "Code incorrect.";
+        return;
+      }
+      document.body.classList.remove("admin-locked");
+      document.getElementById("admin-content").setAttribute("aria-hidden", "false");
+      lockStatus.textContent = "";
       const data = await response.json();
       const status = data.status || {};
       set("memory-count", status.memory_count || 0);
@@ -1879,7 +1910,20 @@ ADMIN_PAGE = """<!doctype html>
     }
     document.getElementById("save-key").addEventListener("click", () => {
       localStorage.setItem("lucie_admin_code", keyInput.value.trim());
+      lockCodeInput.value = keyInput.value.trim();
       loadAdmin();
+    });
+    document.getElementById("unlock").addEventListener("click", () => {
+      keyInput.value = lockCodeInput.value.trim();
+      localStorage.setItem("lucie_admin_code", keyInput.value);
+      loadAdmin();
+    });
+    lockCodeInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        keyInput.value = lockCodeInput.value.trim();
+        localStorage.setItem("lucie_admin_code", keyInput.value);
+        loadAdmin();
+      }
     });
     document.getElementById("refresh").addEventListener("click", loadAdmin);
     document.getElementById("teach-form").addEventListener("submit", async (event) => {
