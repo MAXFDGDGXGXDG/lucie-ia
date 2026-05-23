@@ -958,6 +958,70 @@ HTML_PAGE = """<!doctype html>
       font-size: 12px;
       line-height: 1.35;
     }
+    .voice-face {
+      width: 88px;
+      height: 88px;
+      margin: 2px auto;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      background: radial-gradient(circle at 50% 42%, #ffffff 0 44%, #ecfdf5 45% 100%);
+      position: relative;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+    }
+    .voice-face::before,
+    .voice-face::after {
+      content: "";
+      position: absolute;
+      top: 31px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #111827;
+      transition: transform 160ms ease, height 160ms ease;
+    }
+    .voice-face::before { left: 27px; }
+    .voice-face::after { right: 27px; }
+    .voice-mouth {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      width: 28px;
+      height: 10px;
+      transform: translateX(-50%);
+      border-bottom: 3px solid #10a37f;
+      border-radius: 0 0 999px 999px;
+      transition: all 160ms ease;
+    }
+    .voice-face[data-state="listening"] {
+      background: radial-gradient(circle at 50% 42%, #ffffff 0 38%, #dbeafe 39% 100%);
+      box-shadow: 0 0 0 7px rgba(59, 130, 246, 0.12), 0 12px 30px rgba(15, 23, 42, 0.12);
+      animation: voicePulse 1.1s ease-in-out infinite;
+    }
+    .voice-face[data-state="thinking"] {
+      background: radial-gradient(circle at 50% 42%, #ffffff 0 38%, #fef3c7 39% 100%);
+    }
+    .voice-face[data-state="speaking"] .voice-mouth {
+      height: 18px;
+      width: 20px;
+      border: 3px solid #10a37f;
+      border-radius: 999px;
+      animation: talk 360ms ease-in-out infinite;
+    }
+    .voice-face[data-state="error"] {
+      background: radial-gradient(circle at 50% 42%, #ffffff 0 40%, #fee2e2 41% 100%);
+    }
+    .voice-face[data-state="error"] .voice-mouth {
+      border-bottom-color: #dc2626;
+      transform: translateX(-50%) rotate(180deg);
+    }
+    @keyframes voicePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    @keyframes talk {
+      0%, 100% { transform: translateX(-50%) scaleY(0.8); }
+      50% { transform: translateX(-50%) scaleY(1.18); }
+    }
     .chat-list {
       display: grid;
       align-content: start;
@@ -1055,12 +1119,16 @@ HTML_PAGE = """<!doctype html>
             </div>
             <div class="mail-panel">
               <strong>Mode vocal</strong>
+              <div class="voice-face" id="voice-face" data-state="idle" aria-hidden="true">
+                <span class="voice-mouth"></span>
+              </div>
               <div class="report-note">Lucie ecoute ta voix, envoie la question, puis lit la reponse.</div>
               <div class="mail-actions">
                 <button id="voice-mode" type="button">Activer vocal</button>
                 <button id="voice-speak" type="button">Voix ON</button>
               </div>
               <button class="new-chat" id="voice-toggle" type="button">Parler maintenant</button>
+              <button class="new-chat" id="voice-test" type="button">Tester la voix</button>
               <div class="mail-status" id="voice-state">Voix prete.</div>
             </div>
           </div>
@@ -1151,6 +1219,8 @@ HTML_PAGE = """<!doctype html>
     const voiceSpeakToggle = document.getElementById("voice-speak");
     const voiceModeButton = document.getElementById("voice-mode");
     const voiceState = document.getElementById("voice-state");
+    const voiceFace = document.getElementById("voice-face");
+    const voiceTestButton = document.getElementById("voice-test");
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const chatCard = document.querySelector(".chat-card");
     const chatSidebar = document.querySelector(".chat-sidebar");
@@ -1430,6 +1500,12 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    function setVoiceFace(state) {
+      if (voiceFace) {
+        voiceFace.dataset.state = state || "idle";
+      }
+    }
+
     function shortText(text, limit = 120) {
       const value = String(text || "").replace(/\s+/g, " ").trim();
       if (!value) return "";
@@ -1444,6 +1520,7 @@ HTML_PAGE = """<!doctype html>
     let listening = false;
     let autoSpeak = true;
     let voiceMode = false;
+    let waitingForAnswer = false;
 
     function refreshVoiceStatus() {
       if (voiceSpeakToggle) {
@@ -1460,13 +1537,16 @@ HTML_PAGE = """<!doctype html>
         } else {
           setVoiceState(autoSpeak ? "Voix prete." : "Voix coupee.", false);
         }
+        if (!waitingForAnswer && !("speechSynthesis" in window && window.speechSynthesis.speaking)) {
+          setVoiceFace("idle");
+        }
       }
     }
 
     function speakText(text) {
       if (!autoSpeak || !("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
         if (voiceMode && SpeechRecognition) {
-          setTimeout(() => toggleListening(), 400);
+          setTimeout(() => startListening(), 400);
         }
         return;
       }
@@ -1481,14 +1561,21 @@ HTML_PAGE = """<!doctype html>
       if (voices.length) {
         utter.voice = voices[0];
       }
-      utter.onstart = () => setVoiceState("Je parle...", true);
+      utter.onstart = () => {
+        setVoiceFace("speaking");
+        setVoiceState("Je parle...", true);
+      };
       utter.onend = () => {
+        setVoiceFace("idle");
         refreshVoiceStatus();
         if (voiceMode && SpeechRecognition) {
-          setTimeout(() => toggleListening(), 600);
+          setTimeout(() => startListening(), 600);
         }
       };
-      utter.onerror = () => setVoiceState("Voix indisponible.", false);
+      utter.onerror = () => {
+        setVoiceFace("error");
+        setVoiceState("Voix indisponible.", false);
+      };
       window.speechSynthesis.speak(utter);
     }
 
@@ -1502,7 +1589,8 @@ HTML_PAGE = """<!doctype html>
       recognition.maxAlternatives = 1;
       recognition.onstart = () => {
         listening = true;
-        setVoiceState("J'écoute...", true);
+        setVoiceFace("listening");
+        setVoiceState("J'ecoute...", true);
       };
       recognition.onresult = (event) => {
         let transcript = "";
@@ -1519,36 +1607,64 @@ HTML_PAGE = """<!doctype html>
           form.requestSubmit();
         }
       };
-      recognition.onerror = () => {
+      recognition.onerror = (event) => {
         listening = false;
-        setVoiceState("Micro indisponible.", false);
+        setVoiceFace("error");
+        const message = event && event.error === "not-allowed"
+          ? "Micro bloque: autorise le micro dans le navigateur."
+          : "Micro indisponible.";
+        setVoiceState(message, false);
       };
       recognition.onend = () => {
         listening = false;
-        refreshVoiceStatus();
+        if (!waitingForAnswer) {
+          refreshVoiceStatus();
+        }
       };
       return recognition;
     }
 
     function activateVoiceMode() {
       voiceMode = !voiceMode;
+      refreshVoiceStatus();
       if (voiceMode) {
         autoSpeak = true;
+        refreshVoiceStatus();
         document.body.classList.add("sidebar-closed");
         setVoiceState("Mode vocal actif. Autorise le micro si le navigateur le demande.", true);
-        toggleListening();
+        setVoiceFace("listening");
+        startListening();
       } else {
         if (recognition && listening) {
           recognition.stop();
         }
+        setVoiceFace("idle");
         setVoiceState("Mode vocal coupe.", false);
       }
-      refreshVoiceStatus();
+    }
+
+    function startListening() {
+      const current = ensureRecognition();
+      if (!current) {
+        setVoiceFace("error");
+        setVoiceState("La reconnaissance vocale n'est pas disponible ici.", false);
+        return;
+      }
+      if (listening || waitingForAnswer) {
+        return;
+      }
+      try {
+        current.start();
+      } catch (error) {
+        setVoiceFace("error");
+        setVoiceState("Impossible de lancer le micro.", false);
+      }
     }
 
     function toggleListening() {
       const current = ensureRecognition();
       if (!current) {
+        setVoiceFace("error");
         setVoiceState("La reconnaissance vocale n'est pas disponible ici.", false);
         return;
       }
@@ -1556,11 +1672,7 @@ HTML_PAGE = """<!doctype html>
         current.stop();
         return;
       }
-      try {
-        current.start();
-      } catch (error) {
-        setVoiceState("Impossible de lancer le micro.", false);
-      }
+      startListening();
     }
 
     function renderBrain(data = {}) {
@@ -1861,6 +1973,14 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    if (voiceTestButton) {
+      voiceTestButton.addEventListener("click", () => {
+        autoSpeak = true;
+        refreshVoiceStatus();
+        speakText("Bonjour, je suis Lucie. Si tu entends cette phrase, la voix fonctionne.");
+      });
+    }
+
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
@@ -1879,6 +1999,11 @@ HTML_PAGE = """<!doctype html>
       addBubble("user", message);
       hint.textContent = "Analyse en cours...";
       setStatus("Analyse", true);
+      waitingForAnswer = true;
+      if (voiceMode) {
+        setVoiceFace("thinking");
+        setVoiceState("Je reflechis...", true);
+      }
 
       try {
         const res = await fetch("/api/chat", {
@@ -1892,6 +2017,7 @@ HTML_PAGE = """<!doctype html>
         }
 
         addBubble("assistant", data.answer || "OK");
+        waitingForAnswer = false;
         speakText(data.answer || "OK");
 
         const parts = [];
@@ -1921,14 +2047,17 @@ HTML_PAGE = """<!doctype html>
         renderBrain(data);
         setStatus("Réponse", false);
       } catch (error) {
+        waitingForAnswer = false;
+        setVoiceFace("error");
         const text = String(error.message || error);
         addBubble("assistant", text);
         hint.textContent = "Le serveur n'a pas repondu correctement.";
         setStatus("Erreur", false);
         if (voiceMode && SpeechRecognition) {
-          setTimeout(() => toggleListening(), 700);
+          setTimeout(() => startListening(), 900);
         }
       } finally {
+        waitingForAnswer = false;
         input.value = "";
         input.focus();
       }
