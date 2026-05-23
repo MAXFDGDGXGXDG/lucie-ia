@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.request import Request, urlopen
 
 try:
     from .ai_bot import LearningBot
@@ -838,6 +840,39 @@ HTML_PAGE = """<!doctype html>
       font-size: 12px;
       line-height: 1.35;
     }
+    .mail-panel {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #ffffff;
+    }
+    .mail-panel strong {
+      font-size: 13px;
+    }
+    .mail-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .mail-actions button {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f9fafb;
+      color: #111827;
+      padding: 9px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .mail-actions button:hover {
+      background: #f3f4f6;
+    }
+    .mail-status {
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.35;
+    }
     .chat-list {
       display: grid;
       align-content: start;
@@ -900,7 +935,7 @@ HTML_PAGE = """<!doctype html>
 <body class="sidebar-closed">
   <div class="shell">
     <header class="topbar">
-      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Ouvrir ou fermer les discussions">☰</button>
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Ouvrir ou fermer les discussions" onclick="document.body.classList.toggle('sidebar-closed')">☰</button>
       <div class="brand">
         <h1>Lucie</h1>
         <p>Assistant personnel</p>
@@ -909,7 +944,30 @@ HTML_PAGE = """<!doctype html>
     </header>
 
     <main class="stage">
-      <section class="chat-card">
+      <div class="workspace">
+        <aside class="chat-sidebar">
+          <div class="sidebar-head">
+            <div class="sidebar-line">
+              <strong>Discussions</strong>
+              <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Fermer" onclick="document.body.classList.add('sidebar-closed')">×</button>
+            </div>
+            <button class="new-chat" id="new-chat" type="button">+ Nouveau chat</button>
+            <button class="report-btn" id="report-bad-answer" type="button">Signaler la derniere reponse</button>
+            <div class="report-note">Envoie la question et la reponse a Maxence pour ameliorer Lucie.</div>
+            <div class="mail-panel">
+              <strong>Mails</strong>
+              <div class="mail-actions">
+                <button id="connect-gmail" type="button">Gmail</button>
+                <button id="connect-outlook" type="button">Outlook</button>
+              </div>
+              <button class="new-chat" id="read-mails" type="button">Lire les derniers mails</button>
+              <div class="mail-status" id="mail-status">Connexion mail non verifiee.</div>
+            </div>
+          </div>
+          <div class="chat-list" id="chat-list"></div>
+        </aside>
+
+        <section class="chat-card">
         <div class="chat-head">
           <div class="chat-copy">
             <strong>Comment puis-je t'aider ?</strong>
@@ -942,7 +1000,8 @@ HTML_PAGE = """<!doctype html>
           </div>
           <div class="hint" id="hint">Prete a repondre.</div>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -957,26 +1016,16 @@ HTML_PAGE = """<!doctype html>
     const voiceSpeakToggle = document.getElementById("voice-speak");
     const voiceState = document.getElementById("voice-state");
     const sidebarToggle = document.getElementById("sidebar-toggle");
-    const stage = document.querySelector(".stage");
     const chatCard = document.querySelector(".chat-card");
-    const chatSidebar = document.createElement("aside");
-    chatSidebar.className = "chat-sidebar";
-    chatSidebar.innerHTML = `
-      <div class="sidebar-head">
-        <div class="sidebar-line">
-          <strong>Discussions</strong>
-          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Fermer">×</button>
-        </div>
-        <button class="new-chat" id="new-chat" type="button">+ Nouveau chat</button>
-        <button class="report-btn" id="report-bad-answer" type="button">Signaler la derniere reponse</button>
-        <div class="report-note">Envoie la question et la reponse a Maxence pour ameliorer Lucie.</div>
-      </div>
-      <div class="chat-list" id="chat-list"></div>
-    `;
-    const sidebarClose = chatSidebar.querySelector("#sidebar-close");
-    const newChatButton = chatSidebar.querySelector("#new-chat");
-    const reportBadAnswerButton = chatSidebar.querySelector("#report-bad-answer");
-    const chatList = chatSidebar.querySelector("#chat-list");
+    const chatSidebar = document.querySelector(".chat-sidebar");
+    const sidebarClose = document.getElementById("sidebar-close");
+    const newChatButton = document.getElementById("new-chat");
+    const reportBadAnswerButton = document.getElementById("report-bad-answer");
+    const connectGmailButton = document.getElementById("connect-gmail");
+    const connectOutlookButton = document.getElementById("connect-outlook");
+    const readMailsButton = document.getElementById("read-mails");
+    const mailStatus = document.getElementById("mail-status");
+    const chatList = document.getElementById("chat-list");
     const brainCard = document.createElement("aside");
     brainCard.className = "brain-card";
     brainCard.innerHTML = `
@@ -1018,14 +1067,6 @@ HTML_PAGE = """<!doctype html>
     const brainDocs = brainCard.querySelector("#brain-docs");
     const brainExamples = brainCard.querySelector("#brain-examples");
     const brainFeed = brainCard.querySelector("#brain-feed");
-
-    if (stage && chatCard && !chatSidebar.isConnected) {
-      const workspace = document.createElement("div");
-      workspace.className = "workspace";
-      stage.insertBefore(workspace, chatCard);
-      workspace.appendChild(chatSidebar);
-      workspace.appendChild(chatCard);
-    }
 
     function escapeText(text) {
       return String(text || "");
@@ -1199,6 +1240,12 @@ HTML_PAGE = """<!doctype html>
       status.style.borderColor = accent ? "#10a37f" : "#e5e7eb";
     }
 
+    function setMailStatus(text) {
+      if (mailStatus) {
+        mailStatus.textContent = text;
+      }
+    }
+
     function setVoiceState(text, active = false) {
       if (voiceState) {
         voiceState.textContent = text;
@@ -1356,10 +1403,59 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
-    if (sidebarToggle) {
-      sidebarToggle.addEventListener("click", () => {
-        document.body.classList.toggle("sidebar-closed");
-      });
+    async function loadEmailStatus() {
+      try {
+        const res = await fetch("/api/email/status", { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Statut mail indisponible");
+        }
+        const providers = data.providers || {};
+        const connected = Object.entries(providers)
+          .filter(([, info]) => info.connected)
+          .map(([name]) => name);
+        if (connected.length) {
+          setMailStatus(`Connecte: ${connected.join(", ")}.`);
+          return;
+        }
+        const configured = Object.values(providers).some((info) => info.configured);
+        setMailStatus(configured ? "Pret: connecte Gmail ou Outlook." : "Admin: ajoute les cles OAuth sur Render.");
+      } catch (error) {
+        setMailStatus("Impossible de verifier les mails.");
+      }
+    }
+
+    function connectEmail(provider) {
+      window.location.href = `/connect/${provider}`;
+    }
+
+    async function readConnectedMails() {
+      setMailStatus("Lecture des derniers mails...");
+      try {
+        const res = await fetch("/api/email/inbox", { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Mails indisponibles");
+        }
+        const mails = data.messages || [];
+        if (!mails.length) {
+          addBubble("assistant", "Je n'ai trouve aucun mail recent connecte pour l'instant.");
+          setMailStatus("Aucun mail recent.");
+          return;
+        }
+        const summary = mails.map((mail, index) => {
+          const from = mail.from || "Expediteur inconnu";
+          const subject = mail.subject || "Sans objet";
+          const preview = mail.preview ? ` - ${mail.preview}` : "";
+          return `${index + 1}. ${from}: ${subject}${preview}`;
+        }).join(String.fromCharCode(10));
+        addBubble("assistant", `Voici les derniers mails que je peux lire:\n${summary}`);
+        setMailStatus(`${mails.length} mail(s) lus.`);
+      } catch (error) {
+        const text = String(error.message || error);
+        addBubble("assistant", text);
+        setMailStatus(text);
+      }
     }
 
     if (sidebarClose) {
@@ -1377,6 +1473,18 @@ HTML_PAGE = """<!doctype html>
 
     if (reportBadAnswerButton) {
       reportBadAnswerButton.addEventListener("click", reportBadAnswer);
+    }
+
+    if (connectGmailButton) {
+      connectGmailButton.addEventListener("click", () => connectEmail("gmail"));
+    }
+
+    if (connectOutlookButton) {
+      connectOutlookButton.addEventListener("click", () => connectEmail("outlook"));
+    }
+
+    if (readMailsButton) {
+      readMailsButton.addEventListener("click", readConnectedMails);
     }
 
     if (voiceToggle) {
@@ -1488,6 +1596,7 @@ HTML_PAGE = """<!doctype html>
     renderChatList();
     input.focus();
     loadStatus();
+    loadEmailStatus();
   </script>
 </body>
 </html>
@@ -1497,6 +1606,8 @@ HTML_PAGE = """<!doctype html>
 class AppHandler(BaseHTTPRequestHandler):
     bot: LearningBot
     api_key: str = ""
+    email_states: dict[str, str] = {}
+    email_tokens: dict[str, dict[str, object]] = {}
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -1519,9 +1630,242 @@ class AppHandler(BaseHTTPRequestHandler):
             "uptime_seconds": 0.0,
         }
 
+    def _session_id(self) -> str:
+        cookie = self.headers.get("Cookie", "")
+        for part in cookie.split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == "lucie_session" and value:
+                return value[:96]
+        session_id = secrets.token_urlsafe(24)
+        self._set_session_cookie = f"lucie_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
+        return session_id
+
+    def _public_base_url(self) -> str:
+        configured = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+        if configured:
+            return configured
+        proto = self.headers.get("X-Forwarded-Proto", "http").split(",", 1)[0].strip() or "http"
+        host = self.headers.get("Host", "127.0.0.1:8000").strip()
+        return f"{proto}://{host}"
+
+    def _email_provider_config(self, provider: str) -> dict[str, object]:
+        base_url = self._public_base_url()
+        if provider == "gmail":
+            return {
+                "name": "gmail",
+                "label": "Gmail",
+                "client_id": os.getenv("GMAIL_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                "token_url": "https://oauth2.googleapis.com/token",
+                "redirect_uri": f"{base_url}/oauth/gmail/callback",
+                "scope": "https://www.googleapis.com/auth/gmail.readonly",
+            }
+        if provider == "outlook":
+            return {
+                "name": "outlook",
+                "label": "Outlook",
+                "client_id": os.getenv("OUTLOOK_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("OUTLOOK_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+                "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                "redirect_uri": f"{base_url}/oauth/outlook/callback",
+                "scope": "openid offline_access User.Read Mail.Read",
+            }
+        raise ValueError("Provider mail inconnu.")
+
+    def _email_token_key(self, provider: str, session_id: str | None = None) -> str:
+        return f"{session_id or self._session_id()}:{provider}"
+
+    def _email_status_payload(self) -> dict[str, object]:
+        session_id = self._session_id()
+        providers: dict[str, object] = {}
+        for provider in ("gmail", "outlook"):
+            config = self._email_provider_config(provider)
+            token = self.email_tokens.get(self._email_token_key(provider, session_id), {})
+            providers[provider] = {
+                "label": config["label"],
+                "configured": bool(config["client_id"]),
+                "connected": bool(token.get("access_token")),
+                "scope": config["scope"],
+            }
+        return {"ok": True, "providers": providers}
+
+    def _handle_email_connect(self, provider: str) -> None:
+        try:
+            config = self._email_provider_config(provider)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+            return
+        if not config["client_id"]:
+            self._send_html(
+                "<!doctype html><meta charset='utf-8'><title>Lucie mail</title>"
+                "<body style='font-family:Arial;padding:32px'>"
+                f"<h1>{config['label']} pas encore configure</h1>"
+                "<p>Ajoute les variables OAuth dans Render, puis reviens ici.</p>"
+                "<p>Gmail: GMAIL_CLIENT_ID et GMAIL_CLIENT_SECRET. Outlook: OUTLOOK_CLIENT_ID et OUTLOOK_CLIENT_SECRET.</p>"
+                "<p><a href='/'>Retour a Lucie</a></p></body>"
+            )
+            return
+        session_id = self._session_id()
+        state = secrets.token_urlsafe(24)
+        self.email_states[state] = f"{session_id}:{provider}"
+        params = {
+            "client_id": config["client_id"],
+            "redirect_uri": config["redirect_uri"],
+            "response_type": "code",
+            "scope": config["scope"],
+            "state": state,
+        }
+        if provider == "gmail":
+            params["access_type"] = "offline"
+            params["prompt"] = "consent"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", f"{config['auth_url']}?{urlencode(params)}")
+        self._maybe_set_session_cookie()
+        self.end_headers()
+
+    def _handle_email_callback(self, provider: str) -> None:
+        query = parse_qs(urlparse(self.path).query)
+        if "error" in query:
+            self._send_html(self._email_result_page("Connexion refusee", query["error"][0]))
+            return
+        code = query.get("code", [""])[0]
+        state = query.get("state", [""])[0]
+        state_value = self.email_states.pop(state, "")
+        if not code or not state_value:
+            self._send_html(self._email_result_page("Connexion impossible", "Le code OAuth est manquant ou expire."))
+            return
+        session_id, _, state_provider = state_value.partition(":")
+        if state_provider != provider:
+            self._send_html(self._email_result_page("Connexion impossible", "Le fournisseur ne correspond pas."))
+            return
+        config = self._email_provider_config(provider)
+        if not config["client_secret"]:
+            self._send_html(self._email_result_page("Secret OAuth manquant", "Ajoute le secret OAuth sur Render pour terminer la connexion."))
+            return
+        try:
+            token = self._exchange_email_code(config, code)
+        except Exception as exc:
+            self._send_html(self._email_result_page("Connexion mail echouee", str(exc)))
+            return
+        token["connected_at"] = time.time()
+        self.email_tokens[self._email_token_key(provider, session_id)] = token
+        self._set_session_cookie = f"lucie_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
+        self._send_html(self._email_result_page(f"{config['label']} connecte", "Lucie peut maintenant lire les derniers mails autorises."))
+
+    def _exchange_email_code(self, config: dict[str, object], code: str) -> dict[str, object]:
+        payload = urlencode(
+            {
+                "client_id": config["client_id"],
+                "client_secret": config["client_secret"],
+                "code": code,
+                "redirect_uri": config["redirect_uri"],
+                "grant_type": "authorization_code",
+            }
+        ).encode("utf-8")
+        request = Request(
+            str(config["token_url"]),
+            data=payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urlopen(request, timeout=20) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        if "access_token" not in data:
+            raise RuntimeError("Google/Microsoft n'a pas renvoye de jeton d'acces.")
+        return data if isinstance(data, dict) else {}
+
+    def _email_result_page(self, title: str, message: str) -> str:
+        return (
+            "<!doctype html><meta charset='utf-8'><title>Lucie mail</title>"
+            "<body style='font-family:Arial;padding:32px;line-height:1.5'>"
+            f"<h1>{title}</h1><p>{message}</p><p><a href='/'>Retour a Lucie</a></p></body>"
+        )
+
+    def _handle_email_inbox(self) -> None:
+        session_id = self._session_id()
+        for provider in ("gmail", "outlook"):
+            token = self.email_tokens.get(self._email_token_key(provider, session_id), {})
+            if token.get("access_token"):
+                try:
+                    messages = self._fetch_email_messages(provider, str(token["access_token"]))
+                except Exception as exc:
+                    self._send_json({"error": f"Lecture {provider} impossible: {exc}"}, status=HTTPStatus.BAD_GATEWAY)
+                    return
+                self._send_json({"ok": True, "provider": provider, "messages": messages})
+                return
+        self._send_json(
+            {"error": "Aucun compte mail connecte. Clique d'abord sur Gmail ou Outlook dans le menu."},
+            status=HTTPStatus.BAD_REQUEST,
+        )
+
+    def _fetch_email_messages(self, provider: str, access_token: str) -> list[dict[str, str]]:
+        if provider == "gmail":
+            return self._fetch_gmail_messages(access_token)
+        if provider == "outlook":
+            return self._fetch_outlook_messages(access_token)
+        return []
+
+    def _api_get_json(self, url: str, access_token: str) -> dict[str, object]:
+        request = Request(url, headers={"Authorization": f"Bearer {access_token}"})
+        with urlopen(request, timeout=20) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return data if isinstance(data, dict) else {}
+
+    def _fetch_gmail_messages(self, access_token: str) -> list[dict[str, str]]:
+        listing = self._api_get_json(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=5&q=newer_than:30d",
+            access_token,
+        )
+        messages: list[dict[str, str]] = []
+        for item in listing.get("messages", [])[:5] if isinstance(listing.get("messages"), list) else []:
+            message_id = item.get("id") if isinstance(item, dict) else ""
+            if not message_id:
+                continue
+            detail = self._api_get_json(
+                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date",
+                access_token,
+            )
+            headers = {
+                header.get("name", "").lower(): header.get("value", "")
+                for header in detail.get("payload", {}).get("headers", [])
+                if isinstance(header, dict)
+            }
+            messages.append(
+                {
+                    "from": headers.get("from", ""),
+                    "subject": headers.get("subject", ""),
+                    "date": headers.get("date", ""),
+                    "preview": str(detail.get("snippet", ""))[:180],
+                }
+            )
+        return messages
+
+    def _fetch_outlook_messages(self, access_token: str) -> list[dict[str, str]]:
+        data = self._api_get_json(
+            "https://graph.microsoft.com/v1.0/me/messages?$top=5&$select=subject,from,receivedDateTime,bodyPreview",
+            access_token,
+        )
+        messages: list[dict[str, str]] = []
+        for item in data.get("value", [])[:5] if isinstance(data.get("value"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            sender = item.get("from", {}).get("emailAddress", {}) if isinstance(item.get("from"), dict) else {}
+            messages.append(
+                {
+                    "from": sender.get("address", "") or sender.get("name", ""),
+                    "subject": str(item.get("subject", "")),
+                    "date": str(item.get("receivedDateTime", "")),
+                    "preview": str(item.get("bodyPreview", ""))[:180],
+                }
+            )
+        return messages
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/":
+            self._session_id()
             self._send_html(HTML_PAGE.replace("__IA_API_KEY__", self.api_key))
             return
         if path == "/health":
@@ -1563,6 +1907,19 @@ class AppHandler(BaseHTTPRequestHandler):
           "robot_status": self._robot_status_payload(),
         }
             )
+            return
+        if path == "/api/email/status":
+            self._send_json(self._email_status_payload())
+            return
+        if path == "/api/email/inbox":
+            self._handle_email_inbox()
+            return
+        if path in {"/connect/gmail", "/connect/outlook"}:
+            self._handle_email_connect(path.rsplit("/", 1)[-1])
+            return
+        if path in {"/oauth/gmail/callback", "/oauth/outlook/callback"}:
+            provider = path.split("/")[2]
+            self._handle_email_callback(provider)
             return
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
@@ -1727,11 +2084,17 @@ class AppHandler(BaseHTTPRequestHandler):
         header = self.headers.get("Authorization", "").strip()
         return header == f"Bearer {self.api_key}"
 
+    def _maybe_set_session_cookie(self) -> None:
+        cookie = getattr(self, "_set_session_cookie", "")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+
     def _send_html(self, html: str) -> None:
         data = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self._maybe_set_session_cookie()
         self.end_headers()
         self.wfile.write(data)
 
@@ -1740,6 +2103,7 @@ class AppHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self._maybe_set_session_cookie()
         self.end_headers()
         self.wfile.write(data)
 
@@ -1752,6 +2116,7 @@ class AppHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self._maybe_set_session_cookie()
         self.end_headers()
         self.wfile.write(data)
 
