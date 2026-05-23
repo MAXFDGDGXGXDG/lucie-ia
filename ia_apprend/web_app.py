@@ -756,12 +756,14 @@ HTML_PAGE = """<!doctype html>
     .workspace {
       width: 100%;
       max-width: none;
-      grid-template-columns: 280px minmax(0, 1fr);
-    }
-    body.sidebar-closed .workspace {
-      grid-template-columns: 1fr;
+      display: block;
     }
     .chat-sidebar {
+      position: fixed;
+      top: 64px;
+      left: 0;
+      z-index: 30;
+      width: min(320px, calc(100vw - 20px));
       height: calc(100vh - 64px);
       border-right: 1px solid var(--border);
       background: #f7f7f8;
@@ -770,9 +772,15 @@ HTML_PAGE = """<!doctype html>
       display: grid;
       grid-template-rows: auto 1fr;
       gap: 14px;
+      box-shadow: 18px 0 38px rgba(15, 23, 42, 0.14);
+      transform: translateX(0);
+      transition: transform 180ms ease, box-shadow 180ms ease, visibility 180ms ease;
     }
     body.sidebar-closed .chat-sidebar {
-      display: none;
+      transform: translateX(-105%);
+      visibility: hidden;
+      pointer-events: none;
+      box-shadow: none;
     }
     .sidebar-head {
       display: grid;
@@ -855,6 +863,8 @@ HTML_PAGE = """<!doctype html>
     }
     .chat-card {
       border-left: 0;
+      width: min(940px, 100%);
+      margin: 0 auto;
     }
     .chat-head {
       padding-top: 36px;
@@ -879,14 +889,15 @@ HTML_PAGE = """<!doctype html>
         grid-template-columns: 1fr;
       }
       .chat-sidebar {
-        height: auto;
-        border-right: 0;
-        border-bottom: 1px solid var(--border);
+        top: 64px;
+        height: calc(100vh - 64px);
+        border-right: 1px solid var(--border);
+        border-bottom: 0;
       }
     }
   </style>
 </head>
-<body>
+<body class="sidebar-closed">
   <div class="shell">
     <header class="topbar">
       <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Ouvrir ou fermer les discussions">☰</button>
