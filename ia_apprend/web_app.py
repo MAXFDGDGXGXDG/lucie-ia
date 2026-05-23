@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -963,6 +964,15 @@ HTML_PAGE = """<!doctype html>
               <button class="new-chat" id="read-mails" type="button">Lire les derniers mails</button>
               <div class="mail-status" id="mail-status">Connexion mail non verifiee.</div>
             </div>
+            <div class="mail-panel">
+              <strong>Calendrier</strong>
+              <div class="mail-actions">
+                <button id="connect-google-calendar" type="button">Google</button>
+                <button id="connect-outlook-calendar" type="button">Outlook</button>
+              </div>
+              <button class="new-chat" id="read-calendar" type="button">Voir prochains evenements</button>
+              <div class="mail-status" id="calendar-status">Connexion calendrier non verifiee.</div>
+            </div>
           </div>
           <div class="chat-list" id="chat-list"></div>
         </aside>
@@ -1025,6 +1035,10 @@ HTML_PAGE = """<!doctype html>
     const connectOutlookButton = document.getElementById("connect-outlook");
     const readMailsButton = document.getElementById("read-mails");
     const mailStatus = document.getElementById("mail-status");
+    const connectGoogleCalendarButton = document.getElementById("connect-google-calendar");
+    const connectOutlookCalendarButton = document.getElementById("connect-outlook-calendar");
+    const readCalendarButton = document.getElementById("read-calendar");
+    const calendarStatus = document.getElementById("calendar-status");
     const chatList = document.getElementById("chat-list");
     const brainCard = document.createElement("aside");
     brainCard.className = "brain-card";
@@ -1246,6 +1260,12 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    function setCalendarStatus(text) {
+      if (calendarStatus) {
+        calendarStatus.textContent = text;
+      }
+    }
+
     function setVoiceState(text, active = false) {
       if (voiceState) {
         voiceState.textContent = text;
@@ -1458,6 +1478,61 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    async function loadCalendarStatus() {
+      try {
+        const res = await fetch("/api/calendar/status", { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Statut calendrier indisponible");
+        }
+        const providers = data.providers || {};
+        const connected = Object.entries(providers)
+          .filter(([, info]) => info.connected)
+          .map(([name]) => name.replace("_", " "));
+        if (connected.length) {
+          setCalendarStatus(`Connecte: ${connected.join(", ")}.`);
+          return;
+        }
+        const configured = Object.values(providers).some((info) => info.configured);
+        setCalendarStatus(configured ? "Pret: connecte Google ou Outlook." : "Admin: ajoute les cles OAuth calendrier.");
+      } catch (error) {
+        setCalendarStatus("Impossible de verifier le calendrier.");
+      }
+    }
+
+    function connectCalendar(provider) {
+      window.location.href = `/connect/calendar/${provider}`;
+    }
+
+    async function readConnectedCalendar() {
+      setCalendarStatus("Lecture du calendrier...");
+      try {
+        const res = await fetch("/api/calendar/events", { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Calendrier indisponible");
+        }
+        const events = data.events || [];
+        if (!events.length) {
+          addBubble("assistant", "Je n'ai trouve aucun evenement dans les prochains jours.");
+          setCalendarStatus("Aucun evenement prochain.");
+          return;
+        }
+        const summary = events.map((event, index) => {
+          const when = event.start || "date inconnue";
+          const title = event.title || "Sans titre";
+          const place = event.location ? ` - ${event.location}` : "";
+          return `${index + 1}. ${when}: ${title}${place}`;
+        }).join(String.fromCharCode(10));
+        addBubble("assistant", `Voici tes prochains evenements:${String.fromCharCode(10)}${summary}`);
+        setCalendarStatus(`${events.length} evenement(s) lus.`);
+      } catch (error) {
+        const text = String(error.message || error);
+        addBubble("assistant", text);
+        setCalendarStatus(text);
+      }
+    }
+
     if (sidebarClose) {
       sidebarClose.addEventListener("click", () => {
         document.body.classList.add("sidebar-closed");
@@ -1485,6 +1560,18 @@ HTML_PAGE = """<!doctype html>
 
     if (readMailsButton) {
       readMailsButton.addEventListener("click", readConnectedMails);
+    }
+
+    if (connectGoogleCalendarButton) {
+      connectGoogleCalendarButton.addEventListener("click", () => connectCalendar("google"));
+    }
+
+    if (connectOutlookCalendarButton) {
+      connectOutlookCalendarButton.addEventListener("click", () => connectCalendar("outlook"));
+    }
+
+    if (readCalendarButton) {
+      readCalendarButton.addEventListener("click", readConnectedCalendar);
     }
 
     if (voiceToggle) {
@@ -1597,6 +1684,7 @@ HTML_PAGE = """<!doctype html>
     input.focus();
     loadStatus();
     loadEmailStatus();
+    loadCalendarStatus();
   </script>
 </body>
 </html>
@@ -1608,6 +1696,8 @@ class AppHandler(BaseHTTPRequestHandler):
     api_key: str = ""
     email_states: dict[str, str] = {}
     email_tokens: dict[str, dict[str, object]] = {}
+    calendar_states: dict[str, str] = {}
+    calendar_tokens: dict[str, dict[str, object]] = {}
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -1862,6 +1952,205 @@ class AppHandler(BaseHTTPRequestHandler):
             )
         return messages
 
+    def _calendar_provider_config(self, provider: str) -> dict[str, object]:
+        base_url = self._public_base_url()
+        if provider == "google":
+            return {
+                "name": "google",
+                "label": "Google Calendar",
+                "client_id": os.getenv("GOOGLE_CALENDAR_CLIENT_ID", "").strip()
+                or os.getenv("GMAIL_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET", "").strip()
+                or os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                "token_url": "https://oauth2.googleapis.com/token",
+                "redirect_uri": f"{base_url}/oauth/calendar/google/callback",
+                "scope": "https://www.googleapis.com/auth/calendar.events.readonly",
+            }
+        if provider == "outlook":
+            return {
+                "name": "outlook",
+                "label": "Outlook Calendar",
+                "client_id": os.getenv("OUTLOOK_CALENDAR_CLIENT_ID", "").strip()
+                or os.getenv("OUTLOOK_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("OUTLOOK_CALENDAR_CLIENT_SECRET", "").strip()
+                or os.getenv("OUTLOOK_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+                "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                "redirect_uri": f"{base_url}/oauth/calendar/outlook/callback",
+                "scope": "openid offline_access User.Read Calendars.Read",
+            }
+        raise ValueError("Provider calendrier inconnu.")
+
+    def _calendar_token_key(self, provider: str, session_id: str | None = None) -> str:
+        return f"{session_id or self._session_id()}:{provider}"
+
+    def _calendar_status_payload(self) -> dict[str, object]:
+        session_id = self._session_id()
+        providers: dict[str, object] = {}
+        for provider in ("google", "outlook"):
+            config = self._calendar_provider_config(provider)
+            token = self.calendar_tokens.get(self._calendar_token_key(provider, session_id), {})
+            providers[provider] = {
+                "label": config["label"],
+                "configured": bool(config["client_id"]),
+                "connected": bool(token.get("access_token")),
+                "scope": config["scope"],
+            }
+        return {"ok": True, "providers": providers}
+
+    def _handle_calendar_connect(self, provider: str) -> None:
+        try:
+            config = self._calendar_provider_config(provider)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+            return
+        if not config["client_id"]:
+            self._send_html(
+                "<!doctype html><meta charset='utf-8'><title>Lucie calendrier</title>"
+                "<body style='font-family:Arial;padding:32px'>"
+                f"<h1>{config['label']} pas encore configure</h1>"
+                "<p>Ajoute les variables OAuth dans Render, puis reviens ici.</p>"
+                "<p>Google: GOOGLE_CALENDAR_CLIENT_ID et GOOGLE_CALENDAR_CLIENT_SECRET "
+                "(ou reutilise GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET). Outlook: OUTLOOK_CALENDAR_CLIENT_ID "
+                "et OUTLOOK_CALENDAR_CLIENT_SECRET.</p>"
+                "<p><a href='/'>Retour a Lucie</a></p></body>"
+            )
+            return
+        session_id = self._session_id()
+        state = secrets.token_urlsafe(24)
+        self.calendar_states[state] = f"{session_id}:{provider}"
+        params = {
+            "client_id": config["client_id"],
+            "redirect_uri": config["redirect_uri"],
+            "response_type": "code",
+            "scope": config["scope"],
+            "state": state,
+        }
+        if provider == "google":
+            params["access_type"] = "offline"
+            params["prompt"] = "consent"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", f"{config['auth_url']}?{urlencode(params)}")
+        self._maybe_set_session_cookie()
+        self.end_headers()
+
+    def _handle_calendar_callback(self, provider: str) -> None:
+        query = parse_qs(urlparse(self.path).query)
+        if "error" in query:
+            self._send_html(self._email_result_page("Connexion calendrier refusee", query["error"][0]))
+            return
+        code = query.get("code", [""])[0]
+        state = query.get("state", [""])[0]
+        state_value = self.calendar_states.pop(state, "")
+        if not code or not state_value:
+            self._send_html(self._email_result_page("Connexion impossible", "Le code OAuth est manquant ou expire."))
+            return
+        session_id, _, state_provider = state_value.partition(":")
+        if state_provider != provider:
+            self._send_html(self._email_result_page("Connexion impossible", "Le fournisseur ne correspond pas."))
+            return
+        config = self._calendar_provider_config(provider)
+        if not config["client_secret"]:
+            self._send_html(self._email_result_page("Secret OAuth manquant", "Ajoute le secret OAuth sur Render pour terminer la connexion."))
+            return
+        try:
+            token = self._exchange_email_code(config, code)
+        except Exception as exc:
+            self._send_html(self._email_result_page("Connexion calendrier echouee", str(exc)))
+            return
+        token["connected_at"] = time.time()
+        self.calendar_tokens[self._calendar_token_key(provider, session_id)] = token
+        self._set_session_cookie = f"lucie_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
+        self._send_html(self._email_result_page(f"{config['label']} connecte", "Lucie peut maintenant lire les prochains evenements autorises."))
+
+    def _handle_calendar_events(self) -> None:
+        session_id = self._session_id()
+        for provider in ("google", "outlook"):
+            token = self.calendar_tokens.get(self._calendar_token_key(provider, session_id), {})
+            if token.get("access_token"):
+                try:
+                    events = self._fetch_calendar_events(provider, str(token["access_token"]))
+                except Exception as exc:
+                    self._send_json({"error": f"Lecture calendrier {provider} impossible: {exc}"}, status=HTTPStatus.BAD_GATEWAY)
+                    return
+                self._send_json({"ok": True, "provider": provider, "events": events})
+                return
+        self._send_json(
+            {"error": "Aucun calendrier connecte. Clique d'abord sur Google ou Outlook dans le menu Calendrier."},
+            status=HTTPStatus.BAD_REQUEST,
+        )
+
+    def _fetch_calendar_events(self, provider: str, access_token: str) -> list[dict[str, str]]:
+        if provider == "google":
+            return self._fetch_google_calendar_events(access_token)
+        if provider == "outlook":
+            return self._fetch_outlook_calendar_events(access_token)
+        return []
+
+    def _fetch_google_calendar_events(self, access_token: str) -> list[dict[str, str]]:
+        now = datetime.now(timezone.utc)
+        time_min = now.isoformat().replace("+00:00", "Z")
+        query = urlencode(
+            {
+                "maxResults": "10",
+                "singleEvents": "true",
+                "orderBy": "startTime",
+                "timeMin": time_min,
+            }
+        )
+        data = self._api_get_json(
+            f"https://www.googleapis.com/calendar/v3/calendars/primary/events?{query}",
+            access_token,
+        )
+        events: list[dict[str, str]] = []
+        for item in data.get("items", [])[:10] if isinstance(data.get("items"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            start = item.get("start", {}) if isinstance(item.get("start"), dict) else {}
+            events.append(
+                {
+                    "title": str(item.get("summary", "")),
+                    "start": str(start.get("dateTime") or start.get("date") or ""),
+                    "end": str((item.get("end", {}) if isinstance(item.get("end"), dict) else {}).get("dateTime", "")),
+                    "location": str(item.get("location", "")),
+                }
+            )
+        return events
+
+    def _fetch_outlook_calendar_events(self, access_token: str) -> list[dict[str, str]]:
+        now = datetime.now(timezone.utc)
+        end = now + timedelta(days=30)
+        query = urlencode(
+            {
+                "startDateTime": now.isoformat(),
+                "endDateTime": end.isoformat(),
+                "$top": "10",
+                "$select": "subject,organizer,start,end,location",
+                "$orderby": "start/dateTime",
+            }
+        )
+        data = self._api_get_json(
+            f"https://graph.microsoft.com/v1.0/me/calendarView?{query}",
+            access_token,
+        )
+        events: list[dict[str, str]] = []
+        for item in data.get("value", [])[:10] if isinstance(data.get("value"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            start = item.get("start", {}) if isinstance(item.get("start"), dict) else {}
+            end_value = item.get("end", {}) if isinstance(item.get("end"), dict) else {}
+            location = item.get("location", {}) if isinstance(item.get("location"), dict) else {}
+            events.append(
+                {
+                    "title": str(item.get("subject", "")),
+                    "start": str(start.get("dateTime", "")),
+                    "end": str(end_value.get("dateTime", "")),
+                    "location": str(location.get("displayName", "")),
+                }
+            )
+        return events
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/":
@@ -1914,12 +2203,25 @@ class AppHandler(BaseHTTPRequestHandler):
         if path == "/api/email/inbox":
             self._handle_email_inbox()
             return
+        if path == "/api/calendar/status":
+            self._send_json(self._calendar_status_payload())
+            return
+        if path == "/api/calendar/events":
+            self._handle_calendar_events()
+            return
         if path in {"/connect/gmail", "/connect/outlook"}:
             self._handle_email_connect(path.rsplit("/", 1)[-1])
+            return
+        if path in {"/connect/calendar/google", "/connect/calendar/outlook"}:
+            self._handle_calendar_connect(path.rsplit("/", 1)[-1])
             return
         if path in {"/oauth/gmail/callback", "/oauth/outlook/callback"}:
             provider = path.split("/")[2]
             self._handle_email_callback(provider)
+            return
+        if path in {"/oauth/calendar/google/callback", "/oauth/calendar/outlook/callback"}:
+            provider = path.split("/")[3]
+            self._handle_calendar_callback(provider)
             return
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
