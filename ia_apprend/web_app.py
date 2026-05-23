@@ -1781,8 +1781,8 @@ ADMIN_PAGE = """<!doctype html>
       <p class="muted">Memoire, signalements et apprentissage rapide.</p>
     </div>
     <div class="toolbar">
-      <input id="api-key" type="password" placeholder="Cle admin" value="__IA_API_KEY__">
-      <button id="save-key" type="button">Garder la cle</button>
+      <input id="api-key" type="password" placeholder="Code admin">
+      <button id="save-key" type="button">Entrer</button>
       <button id="refresh" class="primary" type="button">Actualiser</button>
       <a class="button" href="/">Retour au chat</a>
     </div>
@@ -1821,14 +1821,13 @@ ADMIN_PAGE = """<!doctype html>
     </section>
   </main>
   <script>
-    const API_KEY = "__IA_API_KEY__";
     const keyInput = document.getElementById("api-key");
-    const saved = localStorage.getItem("lucie_admin_key");
+    const saved = localStorage.getItem("lucie_admin_code");
     if (saved) keyInput.value = saved;
 
     function headers(extra = {}) {
-      const key = keyInput.value.trim() || API_KEY;
-      return { ...extra, "Authorization": `Bearer ${key}` };
+      const code = keyInput.value.trim();
+      return { ...extra, "X-Admin-Code": code };
     }
     function text(value) {
       return String(value || "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
@@ -1879,7 +1878,7 @@ ADMIN_PAGE = """<!doctype html>
       `).join("");
     }
     document.getElementById("save-key").addEventListener("click", () => {
-      localStorage.setItem("lucie_admin_key", keyInput.value.trim());
+      localStorage.setItem("lucie_admin_code", keyInput.value.trim());
       loadAdmin();
     });
     document.getElementById("refresh").addEventListener("click", loadAdmin);
@@ -1913,6 +1912,7 @@ ADMIN_PAGE = """<!doctype html>
 class AppHandler(BaseHTTPRequestHandler):
     bot: LearningBot
     api_key: str = ""
+    admin_code: str = "042724"
     reports_path: Path = Path(__file__).with_name("reports.json")
     email_states: dict[str, str] = {}
     email_tokens: dict[str, dict[str, object]] = {}
@@ -2544,7 +2544,7 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         if path == "/admin":
             self._session_id()
-            self._send_html(ADMIN_PAGE.replace("__IA_API_KEY__", self.api_key))
+            self._send_html(ADMIN_PAGE)
             return
         if path == "/health":
             self._send_json({"ok": True, "message": "Lucie est en ligne."})
@@ -2568,7 +2568,7 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_json(self._status_payload())
             return
         if path == "/api/admin/overview":
-            if not self._authorized():
+            if not self._authorized_admin():
                 self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
                 return
             self._send_json(self._admin_overview_payload())
@@ -2818,10 +2818,19 @@ class AppHandler(BaseHTTPRequestHandler):
         client_host = self.client_address[0] if self.client_address else ""
         if host in {"127.0.0.1", "localhost"} and client_host in {"127.0.0.1", "::1"}:
             return True
+        if self._authorized_admin():
+            return True
         if not self.api_key:
             return True
         header = self.headers.get("Authorization", "").strip()
         return header == f"Bearer {self.api_key}"
+
+    def _authorized_admin(self) -> bool:
+        code = self.headers.get("X-Admin-Code", "").strip()
+        if code and secrets.compare_digest(code, self.admin_code):
+            return True
+        header = self.headers.get("Authorization", "").strip()
+        return bool(self.api_key and header == f"Bearer {self.api_key}")
 
     def _maybe_set_session_cookie(self) -> None:
         cookie = getattr(self, "_set_session_cookie", "")
@@ -2876,6 +2885,7 @@ def run_web_server(host: str, port: int, memory_path: Path) -> None:
             api_key = secrets.token_urlsafe(32)
             api_key_file.write_text(api_key + "\n", encoding="utf-8")
     AppHandler.api_key = api_key
+    AppHandler.admin_code = os.getenv("ADMIN_ACCESS_CODE", "042724").strip() or "042724"
     try:
         server = ThreadingHTTPServer((host, port), AppHandler)
     except OSError as exc:
