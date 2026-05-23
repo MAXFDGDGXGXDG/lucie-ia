@@ -1053,6 +1053,16 @@ HTML_PAGE = """<!doctype html>
               <div class="mail-status" id="mail-status">Connexion mail non verifiee.</div>
               <div class="mail-status" id="calendar-status">Connexion calendrier non verifiee.</div>
             </div>
+            <div class="mail-panel">
+              <strong>Mode vocal</strong>
+              <div class="report-note">Lucie ecoute ta voix, envoie la question, puis lit la reponse.</div>
+              <div class="mail-actions">
+                <button id="voice-mode" type="button">Activer vocal</button>
+                <button id="voice-speak" type="button">Voix ON</button>
+              </div>
+              <button class="new-chat" id="voice-toggle" type="button">Parler maintenant</button>
+              <div class="mail-status" id="voice-state">Voix prete.</div>
+            </div>
           </div>
           <div class="chat-list" id="chat-list"></div>
         </aside>
@@ -1083,11 +1093,6 @@ HTML_PAGE = """<!doctype html>
               <button type="submit">Envoyer</button>
             </div>
           </form>
-          <div class="voice-tools">
-            <button type="button" id="voice-toggle">Parler</button>
-            <button type="button" id="voice-speak">Voix ON</button>
-            <span class="voice-state" id="voice-state">Voix prete.</span>
-          </div>
           <div class="hint" id="hint">Prete a repondre.</div>
         </div>
         </section>
@@ -1144,6 +1149,7 @@ HTML_PAGE = """<!doctype html>
     const onboardingStart = document.getElementById("onboarding-start");
     const voiceToggle = document.getElementById("voice-toggle");
     const voiceSpeakToggle = document.getElementById("voice-speak");
+    const voiceModeButton = document.getElementById("voice-mode");
     const voiceState = document.getElementById("voice-state");
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const chatCard = document.querySelector(".chat-card");
@@ -1437,19 +1443,31 @@ HTML_PAGE = """<!doctype html>
     let recognition = null;
     let listening = false;
     let autoSpeak = true;
+    let voiceMode = false;
 
     function refreshVoiceStatus() {
       if (voiceSpeakToggle) {
         voiceSpeakToggle.dataset.active = autoSpeak ? "1" : "0";
         voiceSpeakToggle.textContent = autoSpeak ? "Voix ON" : "Voix OFF";
       }
+      if (voiceModeButton) {
+        voiceModeButton.dataset.active = voiceMode ? "1" : "0";
+        voiceModeButton.textContent = voiceMode ? "Vocal actif" : "Activer vocal";
+      }
       if (!listening) {
-        setVoiceState(autoSpeak ? "Voix prête." : "Voix coupée.", false);
+        if (voiceMode) {
+          setVoiceState("Mode vocal actif. Clique sur Parler maintenant.", false);
+        } else {
+          setVoiceState(autoSpeak ? "Voix prete." : "Voix coupee.", false);
+        }
       }
     }
 
     function speakText(text) {
       if (!autoSpeak || !("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
+        if (voiceMode && SpeechRecognition) {
+          setTimeout(() => toggleListening(), 400);
+        }
         return;
       }
       const clean = String(text || "").trim().replace(/^Robot:\s*/i, "");
@@ -1464,7 +1482,12 @@ HTML_PAGE = """<!doctype html>
         utter.voice = voices[0];
       }
       utter.onstart = () => setVoiceState("Je parle...", true);
-      utter.onend = () => refreshVoiceStatus();
+      utter.onend = () => {
+        refreshVoiceStatus();
+        if (voiceMode && SpeechRecognition) {
+          setTimeout(() => toggleListening(), 600);
+        }
+      };
       utter.onerror = () => setVoiceState("Voix indisponible.", false);
       window.speechSynthesis.speak(utter);
     }
@@ -1505,6 +1528,22 @@ HTML_PAGE = """<!doctype html>
         refreshVoiceStatus();
       };
       return recognition;
+    }
+
+    function activateVoiceMode() {
+      voiceMode = !voiceMode;
+      if (voiceMode) {
+        autoSpeak = true;
+        document.body.classList.add("sidebar-closed");
+        setVoiceState("Mode vocal actif. Autorise le micro si le navigateur le demande.", true);
+        toggleListening();
+      } else {
+        if (recognition && listening) {
+          recognition.stop();
+        }
+        setVoiceState("Mode vocal coupe.", false);
+      }
+      refreshVoiceStatus();
     }
 
     function toggleListening() {
@@ -1793,6 +1832,17 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
+    if (voiceModeButton) {
+      voiceModeButton.addEventListener("click", () => {
+        if (!SpeechRecognition) {
+          setVoiceState("Le navigateur ne gere pas le micro vocal.", false);
+          return;
+        }
+        activateVoiceMode();
+      });
+      voiceModeButton.dataset.active = "0";
+    }
+
     if (voiceSpeakToggle) {
       voiceSpeakToggle.addEventListener("click", () => {
         autoSpeak = !autoSpeak;
@@ -1875,6 +1925,9 @@ HTML_PAGE = """<!doctype html>
         addBubble("assistant", text);
         hint.textContent = "Le serveur n'a pas repondu correctement.";
         setStatus("Erreur", false);
+        if (voiceMode && SpeechRecognition) {
+          setTimeout(() => toggleListening(), 700);
+        }
       } finally {
         input.value = "";
         input.focus();
