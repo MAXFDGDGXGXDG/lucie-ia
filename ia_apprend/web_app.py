@@ -702,6 +702,87 @@ HTML_PAGE = """<!doctype html>
       background: #000000;
       border-color: #000000;
     }
+    .onboarding {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(249, 250, 251, 0.82);
+      backdrop-filter: blur(10px);
+    }
+    .onboarding[hidden] {
+      display: none;
+    }
+    .onboarding-card {
+      width: min(620px, 100%);
+      display: grid;
+      gap: 16px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+      color: #111827;
+    }
+    .onboarding-card h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+    .onboarding-card p {
+      margin: 0;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .onboarding-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .onboarding-field {
+      display: grid;
+      gap: 6px;
+    }
+    .onboarding-field.full {
+      grid-column: 1 / -1;
+    }
+    .onboarding-field label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+    }
+    .onboarding-field input,
+    .onboarding-field select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 12px 13px;
+      font: inherit;
+      color: #111827;
+      background: #ffffff;
+    }
+    .onboarding-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .onboarding-actions button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #ffffff;
+      color: #374151;
+    }
+    .onboarding-actions button[type="submit"] {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+    }
     code {
       color: #374151;
       background: #f3f4f6;
@@ -733,6 +814,9 @@ HTML_PAGE = """<!doctype html>
       .composer {
         padding-left: 16px;
         padding-right: 16px;
+      }
+      .onboarding-grid {
+        grid-template-columns: 1fr;
       }
       .bubble.assistant {
         padding-left: 38px;
@@ -1011,6 +1095,42 @@ HTML_PAGE = """<!doctype html>
     </main>
   </div>
 
+  <div class="onboarding" id="onboarding" hidden>
+    <form class="onboarding-card" id="onboarding-form" autocomplete="off">
+      <div>
+        <h2>Bienvenue dans Lucie</h2>
+        <p>Quelques questions rapides pour adapter les reponses et mieux t'aider des le debut.</p>
+      </div>
+      <div class="onboarding-grid">
+        <div class="onboarding-field">
+          <label for="onboard-name">Comment tu t'appelles ?</label>
+          <input id="onboard-name" name="name" placeholder="Ton prenom">
+        </div>
+        <div class="onboarding-field">
+          <label for="onboard-style">Tu preferes quel style ?</label>
+          <select id="onboard-style" name="style">
+            <option value="simple">Simple et clair</option>
+            <option value="court">Tres court</option>
+            <option value="detaille">Detaille avec exemples</option>
+            <option value="prof">Comme un prof</option>
+          </select>
+        </div>
+        <div class="onboarding-field full">
+          <label for="onboard-goal">Tu veux surtout utiliser Lucie pour quoi ?</label>
+          <input id="onboard-goal" name="goal" placeholder="devoirs, code, organisation, robot, idees...">
+        </div>
+        <div class="onboarding-field full">
+          <label for="onboard-topics">Quels sujets t'interessent ?</label>
+          <input id="onboard-topics" name="topics" placeholder="IA, espace, maths, histoire, programmation...">
+        </div>
+      </div>
+      <div class="onboarding-actions">
+        <button type="button" id="onboarding-skip">Passer</button>
+        <button type="submit" id="onboarding-start">Commencer</button>
+      </div>
+    </form>
+  </div>
+
   <script>
     const API_KEY = "__IA_API_KEY__";
     const form = document.getElementById("chat-form");
@@ -1018,6 +1138,10 @@ HTML_PAGE = """<!doctype html>
     const hint = document.getElementById("hint");
     const status = document.getElementById("status");
     const chatLog = document.getElementById("chat-log");
+    const onboarding = document.getElementById("onboarding");
+    const onboardingForm = document.getElementById("onboarding-form");
+    const onboardingSkip = document.getElementById("onboarding-skip");
+    const onboardingStart = document.getElementById("onboarding-start");
     const voiceToggle = document.getElementById("voice-toggle");
     const voiceSpeakToggle = document.getElementById("voice-speak");
     const voiceState = document.getElementById("voice-state");
@@ -1081,8 +1205,39 @@ HTML_PAGE = """<!doctype html>
     }
 
     const STORE_KEY = "lucie_conversations_v1";
+    const PROFILE_KEY = "lucie_user_profile_v1";
     let conversations = [];
     let activeConversationId = "";
+    let userProfile = loadProfile();
+
+    function loadProfile() {
+      try {
+        const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null");
+        return profile && typeof profile === "object" ? profile : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveProfile(profile) {
+      userProfile = profile;
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    }
+
+    function profileName() {
+      return userProfile && userProfile.name ? String(userProfile.name).trim() : "";
+    }
+
+    function profileWelcomeText() {
+      if (!userProfile) {
+        return "Lucie est prete. Envoie un message pour commencer.";
+      }
+      const name = profileName();
+      const hello = name ? `Salut ${name}, je suis prete.` : "Je suis prete.";
+      const goal = userProfile.goal ? ` Je vais t'aider surtout pour: ${userProfile.goal}.` : "";
+      const style = userProfile.style ? ` Style choisi: ${userProfile.style}.` : "";
+      return `${hello}${goal}${style}`;
+    }
 
     function loadConversations() {
       try {
@@ -1165,7 +1320,7 @@ HTML_PAGE = """<!doctype html>
       const conversation = currentConversation();
       const messages = conversation ? conversation.messages : [];
       if (!messages.length) {
-        addBubble("system", "Lucie est prete. Envoie un message pour commencer.", false);
+        addBubble("system", profileWelcomeText(), false);
         return;
       }
       messages.forEach((message) => addBubble(message.role, message.text, false));
@@ -1232,7 +1387,7 @@ HTML_PAGE = """<!doctype html>
 
     function ensureWelcome() {
       if (!chatLog.children.length) {
-        addBubble("system", "Lucie est prete. Envoie un message pour commencer.");
+        addBubble("system", profileWelcomeText());
       }
     }
 
@@ -1447,6 +1602,37 @@ HTML_PAGE = """<!doctype html>
       window.location.href = `/connect/account/${provider}`;
     }
 
+    function showOnboardingIfNeeded() {
+      if (!userProfile && onboarding) {
+        onboarding.hidden = false;
+        const nameInput = document.getElementById("onboard-name");
+        if (nameInput) {
+          setTimeout(() => nameInput.focus(), 50);
+        }
+      }
+    }
+
+    function finishOnboarding(profile) {
+      saveProfile(profile);
+      if (onboarding) {
+        onboarding.hidden = true;
+      }
+      const name = profile.name ? ` ${profile.name}` : "";
+      const topics = profile.topics ? ` Je retiens aussi tes sujets: ${profile.topics}.` : "";
+      addBubble("assistant", `Parfait${name}. Je vais adapter mes reponses pour toi.${topics}`);
+      hint.textContent = "Profil enregistre dans ce navigateur.";
+    }
+
+    function collectOnboardingProfile() {
+      return {
+        name: String(document.getElementById("onboard-name")?.value || "").trim(),
+        style: String(document.getElementById("onboard-style")?.value || "simple").trim(),
+        goal: String(document.getElementById("onboard-goal")?.value || "").trim(),
+        topics: String(document.getElementById("onboard-topics")?.value || "").trim(),
+        createdAt: new Date().toISOString(),
+      };
+    }
+
     async function readConnectedMails() {
       setMailStatus("Lecture des derniers mails...");
       try {
@@ -1564,6 +1750,33 @@ HTML_PAGE = """<!doctype html>
       readCalendarButton.addEventListener("click", readConnectedCalendar);
     }
 
+    if (onboardingForm) {
+      onboardingForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        finishOnboarding(collectOnboardingProfile());
+      });
+    }
+
+    if (onboardingStart) {
+      onboardingStart.addEventListener("click", (event) => {
+        event.preventDefault();
+        finishOnboarding(collectOnboardingProfile());
+      });
+    }
+
+    if (onboardingSkip) {
+      onboardingSkip.addEventListener("click", () => {
+        finishOnboarding({
+          name: "",
+          style: "simple",
+          goal: "",
+          topics: "",
+          skipped: true,
+          createdAt: new Date().toISOString(),
+        });
+      });
+    }
+
     if (voiceToggle) {
       voiceToggle.addEventListener("click", () => {
         if (!SpeechRecognition) {
@@ -1621,7 +1834,7 @@ HTML_PAGE = """<!doctype html>
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, profile: userProfile || {} }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1675,6 +1888,7 @@ HTML_PAGE = """<!doctype html>
     loadStatus();
     loadEmailStatus();
     loadCalendarStatus();
+    showOnboardingIfNeeded();
   </script>
 </body>
 </html>
@@ -2360,6 +2574,24 @@ class AppHandler(BaseHTTPRequestHandler):
         if not message:
             self._send_json({"error": "Message requis"}, status=HTTPStatus.BAD_REQUEST)
             return
+        profile = body.get("profile")
+        profile_hint = ""
+        if isinstance(profile, dict):
+            parts = []
+            name = str(profile.get("name", "")).strip()
+            style = str(profile.get("style", "")).strip()
+            goal = str(profile.get("goal", "")).strip()
+            topics = str(profile.get("topics", "")).strip()
+            if name:
+                parts.append(f"prenom={name}")
+            if style:
+                parts.append(f"style={style}")
+            if goal:
+                parts.append(f"objectif={goal}")
+            if topics:
+                parts.append(f"sujets={topics}")
+            if parts:
+                profile_hint = "Profil utilisateur: " + "; ".join(parts)
 
         try:
             if message.startswith("/teach"):
@@ -2380,7 +2612,8 @@ class AppHandler(BaseHTTPRequestHandler):
                     }
                 )
                 return
-            answer_text = self.bot.answer(message)
+            bot_message = f"{profile_hint}\n\nQuestion: {message}" if profile_hint else message
+            answer_text = self.bot.answer(bot_message)
             if not self.bot.api_available:
                 subject = self.bot._detect_subject(message)
                 self.bot._remember(message, answer_text)
