@@ -70,7 +70,7 @@ DEFAULT_EXAMPLES: list[dict[str, str]] = [
         "answer": "Je suis une IA qui apprend avec le contexte et la memoire.",
     },
 ]
-MAX_HISTORY_TURNS = 12
+MAX_HISTORY_TURNS = 30
 def _make_french_spellchecker() -> Any:
     if SpellChecker is None:
         return None
@@ -1584,6 +1584,13 @@ class LearningBot:
         subject = self._resolve_subject_context(message, self._detect_subject(message))
         self._capture_memory_from_user(message, subject)
 
+        if self._is_conversation_recap_request(message_n):
+            response = self._answer_conversation_recap(subject)
+            self._remember(message, response)
+            if subject:
+                self._remember_subject(subject, message, response)
+            return response
+
         if self._is_correction_request(message_n):
             self.set_pending_action("correction", message)
             return "D'accord. Envoie-moi la phrase a corriger."
@@ -2123,6 +2130,15 @@ class LearningBot:
             r"\bet ses\b",
             r"\blui\b",
             r"\belle\b",
+            r"\bsa vie\b",
+            r"\bson age\b",
+            r"\bson histoire\b",
+            r"\bses enfants\b",
+            r"\bce sujet\b",
+            r"\bcelui ci\b",
+            r"\bcelle ci\b",
+            r"\bca\b",
+            r"\bcela\b",
             r"\bce personnage\b",
             r"\bcette personne\b",
         )
@@ -2148,12 +2164,62 @@ class LearningBot:
             "donne un exemple",
             "exemple",
             "resume",
+            "resume tout",
+            "resumons",
+            "recap",
+            "recapitule",
+            "rappelle moi",
+            "on parlait de quoi",
+            "son ",
+            "sa ",
+            "ses ",
             "plus simple",
             "simplifie",
         )
         if lowered.startswith(followup_starts):
             return True
         return lowered in {"pourquoi", "comment", "qui", "quand", "ou", "combien"}
+
+    def _is_conversation_recap_request(self, message: str) -> bool:
+        lowered = normalize(message)
+        if not lowered:
+            return False
+        exact = {
+            "resume tout",
+            "recap",
+            "recapitule",
+            "rappelle moi",
+            "on parlait de quoi",
+            "de quoi on parle",
+            "resume notre discussion",
+            "resume la conversation",
+        }
+        return lowered in exact or lowered.startswith(("recap ", "recapitule ", "rappelle moi "))
+
+    def _answer_conversation_recap(self, subject: str) -> str:
+        lines: list[str] = []
+        active_subject = subject or self.last_subject
+        if active_subject:
+            lines.append(f"Sujet actuel : {active_subject}.")
+            brief = self.subject_briefs.get(normalize(active_subject)) or self.subject_briefs.get(active_subject)
+            notes = self.subject_memory.get(normalize(active_subject), []) or self.subject_memory.get(active_subject, [])
+            if brief:
+                lines.append(f"Ce que je garde dessus : {brief}")
+            elif notes:
+                lines.append("Ce que je garde dessus : " + " | ".join(notes[-3:]))
+        if self.memory_notes:
+            lines.append("Souvenirs importants : " + " | ".join(self.memory_notes[-5:]))
+        if self.preferences:
+            prefs = ", ".join(f"{key}: {value}" for key, value in list(self.preferences.items())[-5:])
+            lines.append(f"Preferences retenues : {prefs}.")
+        if self.history:
+            recent = []
+            for turn in self.history[-5:]:
+                recent.append(f"- Toi: {turn.user[:90]} / Lucie: {turn.assistant[:110]}")
+            lines.append("Derniers echanges :\n" + "\n".join(recent))
+        if not lines:
+            return "Je n'ai pas encore assez de contexte, mais je peux commencer a le garder maintenant."
+        return "\n".join(lines)
 
     def _answer_direct_message(self, message: str) -> str | None:
         lowered = normalize(message)
@@ -2881,7 +2947,7 @@ class LearningBot:
             parts.append(f"Sujet courant: {self.last_subject}")
         if self.history:
             last_turns = " | ".join(
-                f"U: {turn.user[:40]} / A: {turn.assistant[:50]}" for turn in self.history[-3:]
+                f"U: {turn.user[:55]} / A: {turn.assistant[:65]}" for turn in self.history[-5:]
             )
             parts.append(f"Conversations recentes: {last_turns}")
         if self.memory_sources:
@@ -2892,8 +2958,8 @@ class LearningBot:
         if not parts:
             return "Je n'ai pas encore assez de memoire pour faire un resume."
         summary = " || ".join(parts)
-        if len(summary) > 900:
-            summary = summary[:900].rsplit(" ", 1)[0].rstrip() + "..."
+        if len(summary) > 1400:
+            summary = summary[:1400].rsplit(" ", 1)[0].rstrip() + "..."
         return summary
 
     def _extract_memory_fact(self, message: str) -> str | None:

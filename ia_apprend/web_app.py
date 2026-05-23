@@ -1004,6 +1004,7 @@ HTML_PAGE = """<!doctype html>
             </div>
             <button class="new-chat" id="new-chat" type="button">+ Nouveau chat</button>
             <button class="report-btn" id="report-bad-answer" type="button">Signaler la derniere reponse</button>
+            <a class="report-note" href="/admin">Admin Maxence</a>
             <div class="report-note">Envoie la question et la reponse a Maxence pour ameliorer Lucie.</div>
             <div class="mail-panel">
               <strong>Connexion simple</strong>
@@ -1299,11 +1300,32 @@ HTML_PAGE = """<!doctype html>
       };
     }
 
-    function reportBadAnswer() {
+    async function reportBadAnswer() {
       const report = latestProblemReport();
       if (!report || !report.question) {
         alert("Il faut d'abord poser une question a Lucie.");
         return;
+      }
+      const correction = prompt("Explique le probleme ou ecris la bonne reponse pour Maxence :", "");
+      const payload = {
+        ...report,
+        correction: correction || "",
+        profile: userProfile || {},
+        url: window.location.href,
+      };
+      try {
+        const response = await fetch("/api/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          setStatus("Signalement envoye a l'admin", true);
+          alert("C'est envoye. Maxence le verra dans la page admin.");
+          return;
+        }
+      } catch (error) {
+        console.warn("Report failed, opening mail fallback", error);
       }
       const body = [
         "Bonjour Maxence,",
@@ -1316,7 +1338,7 @@ HTML_PAGE = """<!doctype html>
         report.answer || "(pas de reponse trouvee)",
         "",
         "Ce qu'il faudrait corriger :",
-        "",
+        correction || "",
         "Envoye depuis l'app Lucie.",
       ].join(String.fromCharCode(10));
       const subject = `Probleme Lucie - ${report.title}`.slice(0, 120);
@@ -1718,9 +1740,180 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+ADMIN_PAGE = """<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Lucie</title>
+  <style>
+    :root { color-scheme: light; --bg: #f7f7f8; --panel: #ffffff; --text: #111827; --muted: #6b7280; --border: #e5e7eb; --accent: #10a37f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 28px; background: rgba(255,255,255,.92); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 18px; margin-bottom: 12px; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 24px auto 48px; display: grid; gap: 18px; }
+    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .toolbar input { width: min(420px, 100%); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; font: inherit; }
+    button, a.button { border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+    button.primary { background: #111827; color: #fff; border-color: #111827; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: 0 8px 28px rgba(15, 23, 42, .05); }
+    .stat span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .stat strong { font-size: 26px; }
+    .columns { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; align-items: start; }
+    .list { display: grid; gap: 10px; max-height: 520px; overflow: auto; padding-right: 4px; }
+    .item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #fff; }
+    .item strong { display: block; margin-bottom: 6px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    textarea, input[type="text"] { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px; font: inherit; resize: vertical; }
+    form { display: grid; gap: 10px; }
+    .summary { white-space: pre-wrap; line-height: 1.5; color: #374151; }
+    @media (max-width: 840px) { .grid, .columns { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Admin Lucie</h1>
+      <p class="muted">Memoire, signalements et apprentissage rapide.</p>
+    </div>
+    <div class="toolbar">
+      <input id="api-key" type="password" placeholder="Cle admin" value="__IA_API_KEY__">
+      <button id="save-key" type="button">Garder la cle</button>
+      <button id="refresh" class="primary" type="button">Actualiser</button>
+      <a class="button" href="/">Retour au chat</a>
+    </div>
+  </header>
+  <main>
+    <section class="grid">
+      <div class="card stat"><span>Souvenirs</span><strong id="memory-count">0</strong></div>
+      <div class="card stat"><span>Sujets</span><strong id="subjects-count">0</strong></div>
+      <div class="card stat"><span>Documents</span><strong id="document-count">0</strong></div>
+      <div class="card stat"><span>Signalements</span><strong id="reports-count">0</strong></div>
+    </section>
+    <section class="columns">
+      <div class="card">
+        <h2>Memoire de discussion</h2>
+        <div id="summary" class="summary muted">Chargement...</div>
+      </div>
+      <div class="card">
+        <h2>Apprendre une correction</h2>
+        <form id="teach-form">
+          <input id="teach-question" type="text" placeholder="Question exacte ou proche">
+          <textarea id="teach-answer" rows="5" placeholder="Bonne reponse de Lucie"></textarea>
+          <button class="primary" type="submit">Apprendre</button>
+          <div id="teach-status" class="muted"></div>
+        </form>
+      </div>
+    </section>
+    <section class="columns">
+      <div class="card">
+        <h2>Signalements des utilisateurs</h2>
+        <div id="reports" class="list"></div>
+      </div>
+      <div class="card">
+        <h2>Sujets suivis</h2>
+        <div id="subjects" class="list"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const API_KEY = "__IA_API_KEY__";
+    const keyInput = document.getElementById("api-key");
+    const saved = localStorage.getItem("lucie_admin_key");
+    if (saved) keyInput.value = saved;
+
+    function headers(extra = {}) {
+      const key = keyInput.value.trim() || API_KEY;
+      return { ...extra, "Authorization": `Bearer ${key}` };
+    }
+    function text(value) {
+      return String(value || "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+    }
+    function set(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+    async function loadAdmin() {
+      const response = await fetch("/api/admin/overview", { headers: headers() });
+      if (!response.ok) {
+        document.getElementById("summary").textContent = "Cle admin manquante ou serveur indisponible.";
+        return;
+      }
+      const data = await response.json();
+      const status = data.status || {};
+      set("memory-count", status.memory_count || 0);
+      set("subjects-count", status.subjects_count || 0);
+      set("document-count", status.document_count || 0);
+      set("reports-count", (data.reports || []).length);
+      document.getElementById("summary").textContent = status.conversation_summary || "Pas encore de memoire.";
+      renderReports(data.reports || []);
+      renderSubjects(data.subject_briefs || {});
+    }
+    function renderReports(reports) {
+      const box = document.getElementById("reports");
+      if (!reports.length) {
+        box.innerHTML = '<div class="muted">Aucun signalement pour le moment.</div>';
+        return;
+      }
+      box.innerHTML = reports.map((item) => `
+        <div class="item">
+          <strong>${text(item.question)}</strong>
+          <div class="muted">${text(item.created_at)} - ${text(item.title)}</div>
+          <p>Reponse: ${text(item.answer || "(vide)")}</p>
+          <p>Correction demandee: ${text(item.correction || "(non precisee)")}</p>
+        </div>
+      `).join("");
+    }
+    function renderSubjects(subjects) {
+      const entries = Object.entries(subjects);
+      const box = document.getElementById("subjects");
+      if (!entries.length) {
+        box.innerHTML = '<div class="muted">Aucun sujet suivi.</div>';
+        return;
+      }
+      box.innerHTML = entries.slice(-40).reverse().map(([subject, brief]) => `
+        <div class="item"><strong>${text(subject)}</strong><p>${text(brief)}</p></div>
+      `).join("");
+    }
+    document.getElementById("save-key").addEventListener("click", () => {
+      localStorage.setItem("lucie_admin_key", keyInput.value.trim());
+      loadAdmin();
+    });
+    document.getElementById("refresh").addEventListener("click", loadAdmin);
+    document.getElementById("teach-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const question = document.getElementById("teach-question").value.trim();
+      const answer = document.getElementById("teach-answer").value.trim();
+      const status = document.getElementById("teach-status");
+      if (!question || !answer) {
+        status.textContent = "Question et reponse obligatoires.";
+        return;
+      }
+      const response = await fetch("/api/teach", {
+        method: "POST",
+        headers: headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ question, answer }),
+      });
+      status.textContent = response.ok ? "Lucie a appris cette correction." : "Impossible d'apprendre pour le moment.";
+      if (response.ok) {
+        document.getElementById("teach-form").reset();
+        loadAdmin();
+      }
+    });
+    loadAdmin();
+  </script>
+</body>
+</html>
+"""
+
+
 class AppHandler(BaseHTTPRequestHandler):
     bot: LearningBot
     api_key: str = ""
+    reports_path: Path = Path(__file__).with_name("reports.json")
     email_states: dict[str, str] = {}
     email_tokens: dict[str, dict[str, object]] = {}
     calendar_states: dict[str, str] = {}
@@ -1746,6 +1939,60 @@ class AppHandler(BaseHTTPRequestHandler):
             "last_error": "",
             "command_count": 0,
             "uptime_seconds": 0.0,
+        }
+
+    def _status_payload(self) -> dict[str, object]:
+        return {
+            "ok": True,
+            "warning": self.bot.startup_warning,
+            "model": self.bot.model,
+            "mode": "openai" if self.bot.api_available else "local",
+            "knowledge_source": "dify" if self.bot.dify_client.is_ready() else "none",
+            "pending_action": self.bot.pending_action,
+            "memory_count": len(self.bot.memory_notes),
+            "memory_sources_count": len(self.bot.memory_sources),
+            "preferences_count": len(self.bot.preferences),
+            "subjects_count": len(self.bot.subject_memory),
+            "document_count": len(self.bot.documents),
+            "example_count": self.bot.total_example_count(),
+            "last_subject": self.bot.last_subject,
+            "conversation_summary": self.bot.get_conversation_summary(),
+            "subject_briefs": self.bot.list_subject_briefs(),
+            "robot_status": self._robot_status_payload(),
+        }
+
+    def _load_reports(self) -> list[dict[str, object]]:
+        if not self.reports_path.exists():
+            return []
+        try:
+            raw = json.loads(self.reports_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        return raw if isinstance(raw, list) else []
+
+    def _save_report(self, report: dict[str, object]) -> list[dict[str, object]]:
+        reports = self._load_reports()
+        reports.append(report)
+        reports = reports[-300:]
+        self.reports_path.write_text(
+            json.dumps(reports, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return reports
+
+    def _admin_overview_payload(self) -> dict[str, object]:
+        return {
+            "status": self._status_payload(),
+            "reports": list(reversed(self._load_reports()[-100:])),
+            "memory_notes": self.bot.list_memory_notes()[-80:],
+            "memory_sources": self.bot.list_memory_sources(),
+            "preferences": self.bot.list_preferences(),
+            "subjects": self.bot.list_subjects(),
+            "subject_briefs": self.bot.list_subject_briefs(),
+            "history": [
+                {"user": turn.user, "assistant": turn.assistant}
+                for turn in self.bot.history[-30:]
+            ],
         }
 
     def _session_id(self) -> str:
@@ -2295,6 +2542,10 @@ class AppHandler(BaseHTTPRequestHandler):
             self._session_id()
             self._send_html(HTML_PAGE.replace("__IA_API_KEY__", self.api_key))
             return
+        if path == "/admin":
+            self._session_id()
+            self._send_html(ADMIN_PAGE.replace("__IA_API_KEY__", self.api_key))
+            return
         if path == "/health":
             self._send_json({"ok": True, "message": "Lucie est en ligne."})
             return
@@ -2314,26 +2565,13 @@ class AppHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
                 return
-            self._send_json(
-                {
-                    "ok": True,
-                    "warning": self.bot.startup_warning,
-                    "model": self.bot.model,
-                    "mode": "openai" if self.bot.api_available else "local",
-                    "knowledge_source": "dify" if self.bot.dify_client.is_ready() else "none",
-                    "pending_action": self.bot.pending_action,
-                    "memory_count": len(self.bot.memory_notes),
-                    "memory_sources_count": len(self.bot.memory_sources),
-          "preferences_count": len(self.bot.preferences),
-          "subjects_count": len(self.bot.subject_memory),
-          "document_count": len(self.bot.documents),
-          "example_count": self.bot.total_example_count(),
-          "last_subject": self.bot.last_subject,
-          "conversation_summary": self.bot.get_conversation_summary(),
-          "subject_briefs": self.bot.list_subject_briefs(),
-          "robot_status": self._robot_status_payload(),
-        }
-            )
+            self._send_json(self._status_payload())
+            return
+        if path == "/api/admin/overview":
+            if not self._authorized():
+                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
+            self._send_json(self._admin_overview_payload())
             return
         if path == "/api/email/status":
             self._send_json(self._email_status_payload())
@@ -2388,6 +2626,9 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
                 return
             self._handle_document(body)
+            return
+        if path == "/api/report":
+            self._handle_report(body)
             return
 
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
@@ -2528,6 +2769,38 @@ class AppHandler(BaseHTTPRequestHandler):
                 "document_count": len(self.bot.documents),
             }
         )
+
+    def _handle_report(self, body: dict[str, object]) -> None:
+        question = str(body.get("question", "")).strip()
+        answer = str(body.get("answer", "")).strip()
+        correction = str(body.get("correction", "")).strip()
+        title = str(body.get("title", "Discussion Lucie")).strip()[:140]
+        if not question:
+            self._send_json({"error": "Question requise"}, status=HTTPStatus.BAD_REQUEST)
+            return
+        profile = body.get("profile")
+        if not isinstance(profile, dict):
+            profile = {}
+        report = {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "session_id": self._session_id(),
+            "title": title or "Discussion Lucie",
+            "question": question[:3000],
+            "answer": answer[:5000],
+            "correction": correction[:3000],
+            "profile": profile,
+            "url": str(body.get("url", ""))[:500],
+            "user_agent": self.headers.get("User-Agent", "")[:300],
+        }
+        try:
+            reports = self._save_report(report)
+        except OSError as exc:
+            self._send_json(
+                {"error": f"Erreur de sauvegarde: {exc}"},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
+            return
+        self._send_json({"ok": True, "message": "Signalement recu", "report_count": len(reports)})
 
     def _read_json_body(self) -> dict[str, object]:
         content_length = int(self.headers.get("Content-Length", "0"))
