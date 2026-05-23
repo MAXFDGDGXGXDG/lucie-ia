@@ -956,21 +956,17 @@ HTML_PAGE = """<!doctype html>
             <button class="report-btn" id="report-bad-answer" type="button">Signaler la derniere reponse</button>
             <div class="report-note">Envoie la question et la reponse a Maxence pour ameliorer Lucie.</div>
             <div class="mail-panel">
-              <strong>Mails</strong>
+              <strong>Connexion simple</strong>
+              <div class="report-note">Une seule validation connecte les mails et le calendrier. Lucie ne voit jamais le mot de passe.</div>
               <div class="mail-actions">
-                <button id="connect-gmail" type="button">Gmail</button>
-                <button id="connect-outlook" type="button">Outlook</button>
+                <button id="connect-google" type="button">Google</button>
+                <button id="connect-microsoft" type="button">Microsoft</button>
               </div>
-              <button class="new-chat" id="read-mails" type="button">Lire les derniers mails</button>
+              <div class="mail-actions">
+                <button id="read-mails" type="button">Lire mes mails</button>
+                <button id="read-calendar" type="button">Voir calendrier</button>
+              </div>
               <div class="mail-status" id="mail-status">Connexion mail non verifiee.</div>
-            </div>
-            <div class="mail-panel">
-              <strong>Calendrier</strong>
-              <div class="mail-actions">
-                <button id="connect-google-calendar" type="button">Google</button>
-                <button id="connect-outlook-calendar" type="button">Outlook</button>
-              </div>
-              <button class="new-chat" id="read-calendar" type="button">Voir prochains evenements</button>
               <div class="mail-status" id="calendar-status">Connexion calendrier non verifiee.</div>
             </div>
           </div>
@@ -1031,12 +1027,10 @@ HTML_PAGE = """<!doctype html>
     const sidebarClose = document.getElementById("sidebar-close");
     const newChatButton = document.getElementById("new-chat");
     const reportBadAnswerButton = document.getElementById("report-bad-answer");
-    const connectGmailButton = document.getElementById("connect-gmail");
-    const connectOutlookButton = document.getElementById("connect-outlook");
+    const connectGoogleButton = document.getElementById("connect-google");
+    const connectMicrosoftButton = document.getElementById("connect-microsoft");
     const readMailsButton = document.getElementById("read-mails");
     const mailStatus = document.getElementById("mail-status");
-    const connectGoogleCalendarButton = document.getElementById("connect-google-calendar");
-    const connectOutlookCalendarButton = document.getElementById("connect-outlook-calendar");
     const readCalendarButton = document.getElementById("read-calendar");
     const calendarStatus = document.getElementById("calendar-status");
     const chatList = document.getElementById("chat-list");
@@ -1449,6 +1443,10 @@ HTML_PAGE = """<!doctype html>
       window.location.href = `/connect/${provider}`;
     }
 
+    function connectAccount(provider) {
+      window.location.href = `/connect/account/${provider}`;
+    }
+
     async function readConnectedMails() {
       setMailStatus("Lecture des derniers mails...");
       try {
@@ -1550,24 +1548,16 @@ HTML_PAGE = """<!doctype html>
       reportBadAnswerButton.addEventListener("click", reportBadAnswer);
     }
 
-    if (connectGmailButton) {
-      connectGmailButton.addEventListener("click", () => connectEmail("gmail"));
+    if (connectGoogleButton) {
+      connectGoogleButton.addEventListener("click", () => connectAccount("google"));
     }
 
-    if (connectOutlookButton) {
-      connectOutlookButton.addEventListener("click", () => connectEmail("outlook"));
+    if (connectMicrosoftButton) {
+      connectMicrosoftButton.addEventListener("click", () => connectAccount("microsoft"));
     }
 
     if (readMailsButton) {
       readMailsButton.addEventListener("click", readConnectedMails);
-    }
-
-    if (connectGoogleCalendarButton) {
-      connectGoogleCalendarButton.addEventListener("click", () => connectCalendar("google"));
-    }
-
-    if (connectOutlookCalendarButton) {
-      connectOutlookCalendarButton.addEventListener("click", () => connectCalendar("outlook"));
     }
 
     if (readCalendarButton) {
@@ -1698,6 +1688,7 @@ class AppHandler(BaseHTTPRequestHandler):
     email_tokens: dict[str, dict[str, object]] = {}
     calendar_states: dict[str, str] = {}
     calendar_tokens: dict[str, dict[str, object]] = {}
+    account_states: dict[str, str] = {}
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -1982,6 +1973,116 @@ class AppHandler(BaseHTTPRequestHandler):
             }
         raise ValueError("Provider calendrier inconnu.")
 
+    def _account_provider_config(self, provider: str) -> dict[str, object]:
+        base_url = self._public_base_url()
+        if provider == "google":
+            return {
+                "name": "google",
+                "label": "Google",
+                "mail_provider": "gmail",
+                "calendar_provider": "google",
+                "client_id": os.getenv("GOOGLE_ACCOUNT_CLIENT_ID", "").strip()
+                or os.getenv("GMAIL_CLIENT_ID", "").strip()
+                or os.getenv("GOOGLE_CALENDAR_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("GOOGLE_ACCOUNT_CLIENT_SECRET", "").strip()
+                or os.getenv("GMAIL_CLIENT_SECRET", "").strip()
+                or os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+                "token_url": "https://oauth2.googleapis.com/token",
+                "redirect_uri": f"{base_url}/oauth/account/google/callback",
+                "scope": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.events.readonly",
+            }
+        if provider == "microsoft":
+            return {
+                "name": "microsoft",
+                "label": "Microsoft",
+                "mail_provider": "outlook",
+                "calendar_provider": "outlook",
+                "client_id": os.getenv("MICROSOFT_ACCOUNT_CLIENT_ID", "").strip()
+                or os.getenv("OUTLOOK_CLIENT_ID", "").strip()
+                or os.getenv("OUTLOOK_CALENDAR_CLIENT_ID", "").strip(),
+                "client_secret": os.getenv("MICROSOFT_ACCOUNT_CLIENT_SECRET", "").strip()
+                or os.getenv("OUTLOOK_CLIENT_SECRET", "").strip()
+                or os.getenv("OUTLOOK_CALENDAR_CLIENT_SECRET", "").strip(),
+                "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+                "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                "redirect_uri": f"{base_url}/oauth/account/microsoft/callback",
+                "scope": "openid offline_access User.Read Mail.Read Calendars.Read",
+            }
+        raise ValueError("Compte inconnu.")
+
+    def _handle_account_connect(self, provider: str) -> None:
+        try:
+            config = self._account_provider_config(provider)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+            return
+        if not config["client_id"]:
+            self._send_html(
+                "<!doctype html><meta charset='utf-8'><title>Lucie connexion</title>"
+                "<body style='font-family:Arial;padding:32px;line-height:1.5'>"
+                f"<h1>{config['label']} pas encore configure</h1>"
+                "<p>Pour les utilisateurs ce sera simple: un bouton, puis ils valident chez Google ou Microsoft.</p>"
+                "<p>Pour l'activer, ajoute les cles OAuth dans Render.</p>"
+                "<p>Google: GOOGLE_ACCOUNT_CLIENT_ID et GOOGLE_ACCOUNT_CLIENT_SECRET "
+                "(ou reutilise GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET). Microsoft: MICROSOFT_ACCOUNT_CLIENT_ID "
+                "et MICROSOFT_ACCOUNT_CLIENT_SECRET (ou reutilise OUTLOOK_CLIENT_ID/OUTLOOK_CLIENT_SECRET).</p>"
+                "<p><a href='/'>Retour a Lucie</a></p></body>"
+            )
+            return
+        session_id = self._session_id()
+        state = secrets.token_urlsafe(24)
+        self.account_states[state] = f"{session_id}:{provider}"
+        params = {
+            "client_id": config["client_id"],
+            "redirect_uri": config["redirect_uri"],
+            "response_type": "code",
+            "scope": config["scope"],
+            "state": state,
+        }
+        if provider == "google":
+            params["access_type"] = "offline"
+            params["prompt"] = "consent"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", f"{config['auth_url']}?{urlencode(params)}")
+        self._maybe_set_session_cookie()
+        self.end_headers()
+
+    def _handle_account_callback(self, provider: str) -> None:
+        query = parse_qs(urlparse(self.path).query)
+        if "error" in query:
+            self._send_html(self._email_result_page("Connexion refusee", query["error"][0]))
+            return
+        code = query.get("code", [""])[0]
+        state = query.get("state", [""])[0]
+        state_value = self.account_states.pop(state, "")
+        if not code or not state_value:
+            self._send_html(self._email_result_page("Connexion impossible", "Le code OAuth est manquant ou expire."))
+            return
+        session_id, _, state_provider = state_value.partition(":")
+        if state_provider != provider:
+            self._send_html(self._email_result_page("Connexion impossible", "Le fournisseur ne correspond pas."))
+            return
+        config = self._account_provider_config(provider)
+        if not config["client_secret"]:
+            self._send_html(self._email_result_page("Secret OAuth manquant", "Ajoute le secret OAuth sur Render pour terminer la connexion."))
+            return
+        try:
+            token = self._exchange_email_code(config, code)
+        except Exception as exc:
+            self._send_html(self._email_result_page("Connexion echouee", str(exc)))
+            return
+        token["connected_at"] = time.time()
+        self.email_tokens[self._email_token_key(str(config["mail_provider"]), session_id)] = dict(token)
+        self.calendar_tokens[self._calendar_token_key(str(config["calendar_provider"]), session_id)] = dict(token)
+        self._set_session_cookie = f"lucie_session={session_id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000"
+        self._send_html(
+            self._email_result_page(
+                f"{config['label']} connecte",
+                "Lucie peut maintenant aider avec les mails et le calendrier autorises.",
+            )
+        )
+
     def _calendar_token_key(self, provider: str, session_id: str | None = None) -> str:
         return f"{session_id or self._session_id()}:{provider}"
 
@@ -2215,6 +2316,9 @@ class AppHandler(BaseHTTPRequestHandler):
         if path in {"/connect/calendar/google", "/connect/calendar/outlook"}:
             self._handle_calendar_connect(path.rsplit("/", 1)[-1])
             return
+        if path in {"/connect/account/google", "/connect/account/microsoft"}:
+            self._handle_account_connect(path.rsplit("/", 1)[-1])
+            return
         if path in {"/oauth/gmail/callback", "/oauth/outlook/callback"}:
             provider = path.split("/")[2]
             self._handle_email_callback(provider)
@@ -2222,6 +2326,10 @@ class AppHandler(BaseHTTPRequestHandler):
         if path in {"/oauth/calendar/google/callback", "/oauth/calendar/outlook/callback"}:
             provider = path.split("/")[3]
             self._handle_calendar_callback(provider)
+            return
+        if path in {"/oauth/account/google/callback", "/oauth/account/microsoft/callback"}:
+            provider = path.split("/")[3]
+            self._handle_account_callback(provider)
             return
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
