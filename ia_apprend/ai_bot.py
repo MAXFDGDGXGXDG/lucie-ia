@@ -544,6 +544,99 @@ SYNTHETIC_TOPIC_FACTS: dict[str, dict[str, object]] = {
     },
 }
 
+SYNTHETIC_TOPIC_FACTS.update(
+    {
+        "terre": {
+            "keywords": ("terre", "planete terre", "globe", "monde"),
+            "definition": "La Terre est la planete ou nous vivons. Elle tourne autour du Soleil et possede de l'eau liquide, une atmosphere et une grande biodiversite.",
+            "utilite": "On l'etudie pour comprendre le climat, les oceans, les continents, les volcans, les seismes et la vie.",
+            "pourquoi": "Elle est habitable grace a sa distance au Soleil, son atmosphere et la presence d'eau liquide.",
+            "comment": "La Terre tourne sur elle-meme en environ 24 heures et autour du Soleil en environ 365 jours.",
+            "exemple": "Exemple : le jour et la nuit viennent de la rotation de la Terre.",
+        },
+        "soleil": {
+            "keywords": ("soleil", "etoile", "systeme solaire"),
+            "definition": "Le Soleil est l'etoile au centre du systeme solaire. Il produit lumiere et chaleur.",
+            "utilite": "Il permet la vie sur Terre, influence le climat et fournit de l'energie solaire.",
+            "pourquoi": "Il brille car des reactions de fusion nucleaire transforment l'hydrogene en helium.",
+            "comment": "Sa gravite maintient les planetes en orbite autour de lui.",
+            "exemple": "Exemple : les panneaux solaires transforment une partie de sa lumiere en electricite.",
+        },
+        "eau": {
+            "keywords": ("eau", "cycle de l'eau", "evaporation", "pluie"),
+            "definition": "L'eau est une molecule composee d'hydrogene et d'oxygene, indispensable a la vie.",
+            "utilite": "Elle sert a boire, cultiver, nettoyer, produire de l'energie et faire fonctionner les organismes vivants.",
+            "pourquoi": "Elle est essentielle car les cellules ont besoin d'eau pour leurs reactions chimiques.",
+            "comment": "Dans le cycle de l'eau, elle s'evapore, forme des nuages, retombe en pluie puis rejoint les rivieres et oceans.",
+            "exemple": "Exemple : apres la pluie, l'eau peut s'infiltrer dans le sol ou ruisseler vers une riviere.",
+        },
+        "photosynthese": {
+            "keywords": ("photosynthese", "plante", "chlorophylle", "vegetal"),
+            "definition": "La photosynthese est le processus par lequel les plantes utilisent la lumiere pour fabriquer du sucre.",
+            "utilite": "Elle nourrit les plantes et produit une grande partie de l'oxygene que nous respirons.",
+            "pourquoi": "Elle est importante parce qu'elle transforme l'energie lumineuse en energie chimique.",
+            "comment": "La plante utilise la lumiere, le dioxyde de carbone et l'eau pour produire du glucose et de l'oxygene.",
+            "exemple": "Exemple : une feuille verte capte la lumiere grace a la chlorophylle.",
+        },
+        "electricite": {
+            "keywords": ("electricite", "courant", "tension", "circuit", "electron"),
+            "definition": "L'electricite est liee au deplacement ou a l'accumulation de charges electriques.",
+            "utilite": "Elle alimente les appareils, les moteurs, les ordinateurs, les lampes et les robots.",
+            "pourquoi": "Elle est utile parce qu'elle transporte facilement de l'energie et de l'information.",
+            "comment": "Dans un circuit ferme, une source de tension pousse les charges dans les fils et les composants.",
+            "exemple": "Exemple : une pile, un interrupteur et une LED forment un circuit simple.",
+        },
+        "internet": {
+            "keywords": ("internet", "reseau mondial", "site web", "page web"),
+            "definition": "Internet est un immense reseau mondial d'ordinateurs et de serveurs connectes entre eux.",
+            "utilite": "On l'utilise pour communiquer, chercher des informations, regarder des videos, jouer et utiliser des applications.",
+            "pourquoi": "Il fonctionne parce que les machines echangent des donnees avec des protocoles communs.",
+            "comment": "Quand tu ouvres un site, ton appareil envoie une requete a un serveur qui renvoie une reponse.",
+            "exemple": "Exemple : entrer une adresse web demande au navigateur de contacter un serveur.",
+        },
+        "securite informatique": {
+            "keywords": ("cybersecurite", "securite informatique", "mot de passe", "piratage", "phishing"),
+            "definition": "La securite informatique sert a proteger les comptes, donnees, appareils et reseaux.",
+            "utilite": "Elle evite les vols de donnees, les arnaques, les virus et les acces non autorises.",
+            "pourquoi": "Elle est importante parce que beaucoup d'informations personnelles passent par les appareils connectes.",
+            "comment": "On utilise des mots de passe forts, la double authentification, les mises a jour et la prudence face aux liens inconnus.",
+            "exemple": "Exemple : ne pas donner son mot de passe apres un email suspect.",
+        },
+        "corps humain": {
+            "keywords": ("corps humain", "organe", "coeur", "cerveau", "sang"),
+            "definition": "Le corps humain est un ensemble d'organes et de systemes qui travaillent ensemble pour vivre.",
+            "utilite": "L'etudier aide a comprendre la respiration, la digestion, le mouvement, les sens et la sante.",
+            "pourquoi": "Chaque systeme a un role: respirer, transporter le sang, digerer, penser ou se defendre.",
+            "comment": "Les organes communiquent avec le sang, les nerfs et des signaux chimiques.",
+            "exemple": "Exemple : le coeur pompe le sang pour apporter oxygene et nutriments aux cellules.",
+        },
+        "ecologie": {
+            "keywords": ("ecologie", "climat", "pollution", "biodiversite", "environnement"),
+            "definition": "L'ecologie etudie les relations entre les etres vivants et leur environnement.",
+            "utilite": "Elle aide a proteger les especes, comprendre le climat et reduire les pollutions.",
+            "pourquoi": "Elle est importante car les humains dependent de l'eau, de l'air, des sols et de la biodiversite.",
+            "comment": "On observe les ecosystemes, les chaines alimentaires, les ressources et les impacts humains.",
+            "exemple": "Exemple : planter des arbres peut aider localement la biodiversite et limiter l'erosion.",
+        },
+        "geometrie": {
+            "keywords": ("geometrie", "triangle", "cercle", "angle", "aire", "perimetre"),
+            "definition": "La geometrie est la partie des mathematiques qui etudie les formes, les distances, les angles et les surfaces.",
+            "utilite": "Elle sert en architecture, robotique, dessin technique, jeux video et impression 3D.",
+            "pourquoi": "Elle est utile parce qu'elle permet de mesurer et construire avec precision.",
+            "comment": "On utilise des formules comme aire, perimetre, volume et theoremes selon la forme.",
+            "exemple": "Exemple : l'aire d'un rectangle vaut longueur multipliee par largeur.",
+        },
+        "histoire de france": {
+            "keywords": ("histoire de france", "france", "revolution francaise", "moyen age", "republique"),
+            "definition": "L'histoire de France regroupe les grandes periodes, evenements et personnages qui ont construit le pays.",
+            "utilite": "Elle aide a comprendre la societe, les institutions, la culture et les conflits du present.",
+            "pourquoi": "Elle est importante parce que beaucoup de lois, symboles et habitudes viennent du passe.",
+            "comment": "On l'etudie par periodes: Antiquite, Moyen Age, Temps modernes, Revolution, Republiques et epoque contemporaine.",
+            "exemple": "Exemple : la Revolution francaise de 1789 transforme fortement la politique et la societe.",
+        },
+    }
+)
+
 
 def normalize(text: str) -> str:
     stripped = "".join(
@@ -1269,6 +1362,25 @@ class LearningBot:
         if not (has_math_lead or has_math_operator or looks_like_plain_number):
             return None
 
+        if "aire" in raw_n and "triangle" in raw_n and not has_math_operator:
+            return self._format_response(
+                "Geometrie",
+                ["L'aire d'un triangle se calcule avec: base x hauteur / 2."],
+                "Donne-moi la base et la hauteur si tu veux que je fasse le calcul.",
+            )
+        if "aire" in raw_n and "rectangle" in raw_n and not has_math_operator:
+            return self._format_response(
+                "Geometrie",
+                ["L'aire d'un rectangle se calcule avec: longueur x largeur."],
+                "Donne-moi la longueur et la largeur si tu veux que je fasse le calcul.",
+            )
+        if "perimetre" in raw_n and "rectangle" in raw_n and not has_math_operator:
+            return self._format_response(
+                "Geometrie",
+                ["Le perimetre d'un rectangle se calcule avec: 2 x (longueur + largeur)."],
+                "Donne-moi la longueur et la largeur si tu veux que je fasse le calcul.",
+            )
+
         expression, display = self._extract_math_expression(raw, keep_display=True)
         if not expression:
             if has_math_lead:
@@ -1865,14 +1977,10 @@ class LearningBot:
         )
 
     def _is_plan_request(self, message_n: str) -> bool:
-        return any(
-            phrase in message_n
-            for phrase in (
-                "plan",
-                "fais un plan",
-                "donne un plan",
-                "structure",
-                "organise",
+        return bool(
+            re.search(
+                r"\b(fais\s+un\s+plan|donne\s+un\s+plan|plan\s+pour|plan\s+de|structure|organise)\b",
+                message_n,
             )
         )
 
@@ -1994,6 +2102,9 @@ class LearningBot:
         for subject, keywords in mapping.items():
             if any(keyword in lowered for keyword in keywords):
                 return subject
+        synthetic_topic = self._detect_synthetic_topic(lowered)
+        if synthetic_topic:
+            return synthetic_topic
         return ""
 
 
@@ -3075,6 +3186,16 @@ class LearningBot:
         if contextual_answer:
             return contextual_answer
 
+        common_answer = self._answer_common_question(cleaned)
+        if common_answer:
+            return self._package_answer(
+                "Reponse",
+                common_answer,
+                detail="Si tu veux, je peux detailler davantage ou donner un exemple.",
+                subject=subject_context or "",
+                message=cleaned,
+            )
+
         profile_answer = self._answer_by_question_kind(
             cleaned,
             subject_context,
@@ -3644,6 +3765,57 @@ class LearningBot:
                 "Moli?re est un grand auteur de th??tre fran?ais du XVIIe si?cle, connu pour "
                 "ses com?dies."
             )
+        if any(phrase in lower for phrase in ("capitale du japon", "capitale japon")):
+            return "La capitale du Japon est Tokyo."
+        if any(phrase in lower for phrase in ("capitale de la france", "capitale france")):
+            return "La capitale de la France est Paris."
+        if any(phrase in lower for phrase in ("capitale de l'espagne", "capitale espagne")):
+            return "La capitale de l'Espagne est Madrid."
+        if any(phrase in lower for phrase in ("capitale de l'italie", "capitale italie")):
+            return "La capitale de l'Italie est Rome."
+        if any(phrase in lower for phrase in ("capitale de l'allemagne", "capitale allemagne")):
+            return "La capitale de l'Allemagne est Berlin."
+        if "combien" in lower and "planete" in lower and "systeme solaire" in lower:
+            return "Le systeme solaire compte 8 planetes: Mercure, Venus, Terre, Mars, Jupiter, Saturne, Uranus et Neptune."
+        if "plus grande planete" in lower or ("planete" in lower and "plus grande" in lower):
+            return "La plus grande planete du systeme solaire est Jupiter."
+        if "plus proche" in lower and "soleil" in lower and "planete" in lower:
+            return "La planete la plus proche du Soleil est Mercure."
+        if "photosynthese" in lower:
+            return (
+                "La photosynthese permet aux plantes de fabriquer du sucre avec la lumiere, "
+                "l'eau et le dioxyde de carbone. Elle libere aussi de l'oxygene."
+            )
+        if "cycle de l'eau" in lower:
+            return (
+                "Le cycle de l'eau suit quatre grandes etapes: evaporation, condensation, "
+                "precipitations puis retour vers les rivieres, nappes et oceans."
+            )
+        if "comment fonctionne internet" in lower or "internet fonctionne" in lower:
+            return (
+                "Internet fonctionne par echanges de donnees: ton appareil envoie une requete, "
+                "des serveurs repondent, et le navigateur reconstruit la page ou le service."
+            )
+        if "mot de passe" in lower and ("fort" in lower or "securise" in lower):
+            return (
+                "Un bon mot de passe est long, unique et difficile a deviner. Le mieux est "
+                "d'utiliser une phrase de passe et la double authentification."
+            )
+        if "revolution francaise" in lower:
+            return (
+                "La Revolution francaise commence en 1789. Elle transforme la monarchie, "
+                "les privileges et les institutions, puis ouvre la voie a de nouveaux regimes politiques."
+            )
+        if "premiere guerre mondiale" in lower:
+            return "La Premiere Guerre mondiale a lieu de 1914 a 1918."
+        if "deuxieme guerre mondiale" in lower or "seconde guerre mondiale" in lower:
+            return "La Seconde Guerre mondiale a lieu de 1939 a 1945."
+        if "aire d'un rectangle" in lower or "aire rectangle" in lower:
+            return "L'aire d'un rectangle se calcule avec: longueur x largeur."
+        if "perimetre d'un rectangle" in lower or "perimetre rectangle" in lower:
+            return "Le perimetre d'un rectangle se calcule avec: 2 x (longueur + largeur)."
+        if "aire d'un triangle" in lower or "aire triangle" in lower:
+            return "L'aire d'un triangle se calcule avec: base x hauteur / 2."
         if "exemple" in lower and "compar" in lower:
             return (
                 "Exemple de comparaison: Python est plus simple pour debuter en programmation, "
@@ -3788,7 +3960,7 @@ class LearningBot:
             f"On peut parler de {subject}.",
             [
                 "Je garde ce sujet pour la suite de la conversation.",
-                "Pose-moi ensuite une question plus precise: sa vie, sa carriere, ses œuvres, son histoire, ou un point particulier.",
+                "Pose-moi ensuite une question plus precise: definition, fonctionnement, exemple, avantage, risque ou point particulier.",
             ],
             "Je te reponds dans le meme fil tant qu'on reste sur ce theme.",
         )
@@ -4000,7 +4172,7 @@ class LearningBot:
                 f"Tu peux me demander un détail précis sur {subject}, ou me donner une phrase plus longue à analyser."
             )
         return (
-            f"Tu peux me demander la suite sur {subject}, ou me donner un sous-point précis comme la carrière, la famille ou une date."
+            f"Tu peux me demander la suite sur {subject}, ou me donner un sous-point précis: definition, exemple, cause, date ou fonctionnement."
         )
 
     def _response_style_hint(self, message: str) -> str:
