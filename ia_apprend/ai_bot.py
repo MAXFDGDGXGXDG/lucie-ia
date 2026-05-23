@@ -1470,6 +1470,7 @@ class LearningBot:
             return local_hint
 
         subject = self._resolve_subject_context(message, self._detect_subject(message))
+        self._capture_memory_from_user(message, subject)
 
         if self._is_correction_request(message_n):
             self.set_pending_action("correction", message)
@@ -1505,7 +1506,7 @@ class LearningBot:
             self.set_pending_action("summary", message)
             return "D'accord. Envoie-moi le texte a resumer."
 
-        if subject and self._is_topic_opening_message(message_n):
+        if subject and (self._is_topic_opening_message(message_n) or normalize(subject) == message_n):
             response = self._answer_topic_opening(message, subject)
             self._remember_subject(subject, message, response)
             self._remember(message, response)
@@ -1961,6 +1962,10 @@ class LearningBot:
 
     def _detect_subject(self, message: str) -> str:
         lowered = normalize(message)
+        if "celine dion" in lowered:
+            return "celine dion"
+        if any(word in lowered for word in ("francais", "grammaire", "orthographe", "conjugaison")):
+            return "francais"
         mapping = {
             "python": ("python", "pyhton", "code"),
             "web": ("web", "html", "css", "site", "internet"),
@@ -1980,6 +1985,12 @@ class LearningBot:
             "chats": ("chat", "chats", "fÃ©lin"),
             "cÃ©line dion": ("celine dion", "cÃ©line dion", "chanteuse"),
         }
+        mapping.update(
+            {
+                "francais": ("francais", "français", "grammaire", "orthographe", "conjugaison"),
+                "celine dion": ("celine dion", "céline dion", "chanteuse"),
+            }
+        )
         for subject, keywords in mapping.items():
             if any(keyword in lowered for keyword in keywords):
                 return subject
@@ -2247,8 +2258,9 @@ class LearningBot:
         target_subject = subject or self.last_subject
         if not target_subject:
             return None
-        brief = self.subject_briefs.get(normalize(target_subject), "").strip()
-        notes = self.subject_memory.get(target_subject, [])
+        target_subject_n = normalize(target_subject)
+        brief = self.subject_briefs.get(target_subject_n, "").strip()
+        notes = self.subject_memory.get(target_subject_n, [])
         if not notes:
             if brief:
                 return brief
@@ -3007,7 +3019,7 @@ class LearningBot:
         if nearest:
             best_question, best_answer, score = nearest
             overlap = _token_overlap_score(normalize(cleaned), normalize(best_question))
-            if score >= 0.68 and overlap >= 2:
+            if score >= 0.74 and overlap >= 2:
                 self._remember(cleaned, best_answer)
                 return best_answer
 
@@ -3123,8 +3135,9 @@ class LearningBot:
         nearest = self._nearest_example(cleaned)
         if nearest:
             best_question, best_answer, score = nearest
-            if score >= 0.45:
-                if score >= 0.8:
+            overlap = _token_overlap_score(normalize(cleaned), normalize(best_question))
+            if score >= 0.7 and overlap >= 2:
+                if score >= 0.86:
                     return best_answer
                 return self._package_answer(
                     "Réponse proche",
@@ -4179,7 +4192,6 @@ class LearningBot:
                 )
 
             if not subject_n:
-                return None
                 generic_answers = {
                     "definition": "Une définition dit ce que c'est, puis elle peut ajouter à quoi ça sert. Par exemple, un serveur est un programme qui répond à des requêtes.",
                     "why": "Une réponse en 'pourquoi' explique la cause principale, puis éventuellement l'intérêt ou l'effet. Par exemple, on explique pourquoi le ciel est bleu avec la lumière.",
@@ -4202,6 +4214,7 @@ class LearningBot:
                         detail=style_detail,
                         follow_up=style_follow_up,
                     )
+                return None
 
         if kind == "count":
             if subject_n:
@@ -4395,7 +4408,8 @@ class LearningBot:
         nearest = self._nearest_example(message)
         if nearest:
             best_question, best_answer, score = nearest
-            if score >= 0.55:
+            overlap = _token_overlap_score(message_n, normalize(best_question))
+            if score >= 0.7 and overlap >= 2:
                 if score >= 0.88:
                     return best_answer
                 return f"{best_answer} (proche de: {best_question})"

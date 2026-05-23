@@ -383,30 +383,6 @@ HTML_PAGE = """<!doctype html>
       gap: 12px;
       flex-wrap: wrap;
     }
-    .voice-tools {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    .voice-tools button {
-      border: 1px solid var(--border);
-      background: rgba(2, 6, 23, 0.55);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      cursor: pointer;
-    }
-    .voice-tools button[data-active="1"] {
-      border-color: rgba(56, 189, 248, 0.48);
-      background: rgba(56, 189, 248, 0.14);
-    }
-    .voice-state {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
-    }
     .actions button[type="submit"] {
       border: 1px solid rgba(56, 189, 248, 0.28);
       background: linear-gradient(180deg, rgba(56, 189, 248, 0.22), rgba(14, 165, 233, 0.16));
@@ -548,8 +524,7 @@ HTML_PAGE = """<!doctype html>
     .brain-title span,
     .chat-copy span,
     .mini,
-    .hint,
-    .voice-state {
+    .hint {
       color: var(--muted);
     }
     .brain-focus,
@@ -583,8 +558,7 @@ HTML_PAGE = """<!doctype html>
     .chips {
       display: none;
     }
-    .chips button,
-    .voice-tools button {
+    .chips button {
       background: #ffffff;
       color: #374151;
       border: 1px solid var(--border);
@@ -592,16 +566,10 @@ HTML_PAGE = """<!doctype html>
       padding: 8px 12px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
-    .chips button:hover,
-    .voice-tools button:hover {
+    .chips button:hover {
       transform: translateY(-1px);
       background: #f9fafb;
       border-color: #d1d5db;
-    }
-    .voice-tools button[data-active="1"] {
-      background: #ecfdf5;
-      border-color: #a7f3d0;
-      color: #047857;
     }
     .chat-log {
       width: min(820px, 100%);
@@ -662,7 +630,6 @@ HTML_PAGE = """<!doctype html>
       border-top: 1px solid rgba(229, 231, 235, 0.72);
     }
     .composer form,
-    .voice-tools,
     .hint {
       width: min(820px, 100%);
       margin-left: auto;
@@ -958,70 +925,6 @@ HTML_PAGE = """<!doctype html>
       font-size: 12px;
       line-height: 1.35;
     }
-    .voice-face {
-      width: 88px;
-      height: 88px;
-      margin: 2px auto;
-      border-radius: 999px;
-      border: 1px solid #d1d5db;
-      background: radial-gradient(circle at 50% 42%, #ffffff 0 44%, #ecfdf5 45% 100%);
-      position: relative;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-    }
-    .voice-face::before,
-    .voice-face::after {
-      content: "";
-      position: absolute;
-      top: 31px;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: #111827;
-      transition: transform 160ms ease, height 160ms ease;
-    }
-    .voice-face::before { left: 27px; }
-    .voice-face::after { right: 27px; }
-    .voice-mouth {
-      position: absolute;
-      left: 50%;
-      bottom: 24px;
-      width: 28px;
-      height: 10px;
-      transform: translateX(-50%);
-      border-bottom: 3px solid #10a37f;
-      border-radius: 0 0 999px 999px;
-      transition: all 160ms ease;
-    }
-    .voice-face[data-state="listening"] {
-      background: radial-gradient(circle at 50% 42%, #ffffff 0 38%, #dbeafe 39% 100%);
-      box-shadow: 0 0 0 7px rgba(59, 130, 246, 0.12), 0 12px 30px rgba(15, 23, 42, 0.12);
-      animation: voicePulse 1.1s ease-in-out infinite;
-    }
-    .voice-face[data-state="thinking"] {
-      background: radial-gradient(circle at 50% 42%, #ffffff 0 38%, #fef3c7 39% 100%);
-    }
-    .voice-face[data-state="speaking"] .voice-mouth {
-      height: 18px;
-      width: 20px;
-      border: 3px solid #10a37f;
-      border-radius: 999px;
-      animation: talk 360ms ease-in-out infinite;
-    }
-    .voice-face[data-state="error"] {
-      background: radial-gradient(circle at 50% 42%, #ffffff 0 40%, #fee2e2 41% 100%);
-    }
-    .voice-face[data-state="error"] .voice-mouth {
-      border-bottom-color: #dc2626;
-      transform: translateX(-50%) rotate(180deg);
-    }
-    @keyframes voicePulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.04); }
-    }
-    @keyframes talk {
-      0%, 100% { transform: translateX(-50%) scaleY(0.8); }
-      50% { transform: translateX(-50%) scaleY(1.18); }
-    }
     .chat-list {
       display: grid;
       align-content: start;
@@ -1054,7 +957,6 @@ HTML_PAGE = """<!doctype html>
       padding-top: 36px;
     }
     .chips,
-    .voice-tools,
     .hint,
     .mini {
       display: none;
@@ -1116,20 +1018,6 @@ HTML_PAGE = """<!doctype html>
               </div>
               <div class="mail-status" id="mail-status">Connexion mail non verifiee.</div>
               <div class="mail-status" id="calendar-status">Connexion calendrier non verifiee.</div>
-            </div>
-            <div class="mail-panel">
-              <strong>Mode vocal</strong>
-              <div class="voice-face" id="voice-face" data-state="idle" aria-hidden="true">
-                <span class="voice-mouth"></span>
-              </div>
-              <div class="report-note">Lucie ecoute ta voix, envoie la question, puis lit la reponse.</div>
-              <div class="mail-actions">
-                <button id="voice-mode" type="button">Activer vocal</button>
-                <button id="voice-speak" type="button">Voix ON</button>
-              </div>
-              <button class="new-chat" id="voice-toggle" type="button">Parler maintenant</button>
-              <button class="new-chat" id="voice-test" type="button">Tester la voix</button>
-              <div class="mail-status" id="voice-state">Voix prete.</div>
             </div>
           </div>
           <div class="chat-list" id="chat-list"></div>
@@ -1215,12 +1103,6 @@ HTML_PAGE = """<!doctype html>
     const onboardingForm = document.getElementById("onboarding-form");
     const onboardingSkip = document.getElementById("onboarding-skip");
     const onboardingStart = document.getElementById("onboarding-start");
-    const voiceToggle = document.getElementById("voice-toggle");
-    const voiceSpeakToggle = document.getElementById("voice-speak");
-    const voiceModeButton = document.getElementById("voice-mode");
-    const voiceState = document.getElementById("voice-state");
-    const voiceFace = document.getElementById("voice-face");
-    const voiceTestButton = document.getElementById("voice-test");
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const chatCard = document.querySelector(".chat-card");
     const chatSidebar = document.querySelector(".chat-sidebar");
@@ -1491,21 +1373,6 @@ HTML_PAGE = """<!doctype html>
       }
     }
 
-    function setVoiceState(text, active = false) {
-      if (voiceState) {
-        voiceState.textContent = text;
-      }
-      if (voiceToggle) {
-        voiceToggle.dataset.active = active ? "1" : "0";
-      }
-    }
-
-    function setVoiceFace(state) {
-      if (voiceFace) {
-        voiceFace.dataset.state = state || "idle";
-      }
-    }
-
     function shortText(text, limit = 120) {
       const value = String(text || "").replace(/\s+/g, " ").trim();
       if (!value) return "";
@@ -1513,166 +1380,6 @@ HTML_PAGE = """<!doctype html>
       const cut = value.slice(0, limit);
       const idx = cut.lastIndexOf(" ");
       return `${(idx > 24 ? cut.slice(0, idx) : cut).trim()}...`;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let listening = false;
-    let autoSpeak = true;
-    let voiceMode = false;
-    let waitingForAnswer = false;
-
-    function refreshVoiceStatus() {
-      if (voiceSpeakToggle) {
-        voiceSpeakToggle.dataset.active = autoSpeak ? "1" : "0";
-        voiceSpeakToggle.textContent = autoSpeak ? "Voix ON" : "Voix OFF";
-      }
-      if (voiceModeButton) {
-        voiceModeButton.dataset.active = voiceMode ? "1" : "0";
-        voiceModeButton.textContent = voiceMode ? "Vocal actif" : "Activer vocal";
-      }
-      if (!listening) {
-        if (voiceMode) {
-          setVoiceState("Mode vocal actif. Clique sur Parler maintenant.", false);
-        } else {
-          setVoiceState(autoSpeak ? "Voix prete." : "Voix coupee.", false);
-        }
-        if (!waitingForAnswer && !("speechSynthesis" in window && window.speechSynthesis.speaking)) {
-          setVoiceFace("idle");
-        }
-      }
-    }
-
-    function speakText(text) {
-      if (!autoSpeak || !("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
-        if (voiceMode && SpeechRecognition) {
-          setTimeout(() => startListening(), 400);
-        }
-        return;
-      }
-      const clean = String(text || "").trim().replace(/^Robot:\s*/i, "");
-      if (!clean) return;
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(clean);
-      utter.lang = "fr-FR";
-      utter.rate = 1;
-      utter.pitch = 1;
-      const voices = window.speechSynthesis.getVoices().filter((voice) => String(voice.lang || "").toLowerCase().startsWith("fr"));
-      if (voices.length) {
-        utter.voice = voices[0];
-      }
-      utter.onstart = () => {
-        setVoiceFace("speaking");
-        setVoiceState("Je parle...", true);
-      };
-      utter.onend = () => {
-        setVoiceFace("idle");
-        refreshVoiceStatus();
-        if (voiceMode && SpeechRecognition) {
-          setTimeout(() => startListening(), 600);
-        }
-      };
-      utter.onerror = () => {
-        setVoiceFace("error");
-        setVoiceState("Voix indisponible.", false);
-      };
-      window.speechSynthesis.speak(utter);
-    }
-
-    function ensureRecognition() {
-      if (!SpeechRecognition) return null;
-      if (recognition) return recognition;
-      recognition = new SpeechRecognition();
-      recognition.lang = "fr-FR";
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-      recognition.onstart = () => {
-        listening = true;
-        setVoiceFace("listening");
-        setVoiceState("J'ecoute...", true);
-      };
-      recognition.onresult = (event) => {
-        let transcript = "";
-        for (let index = 0; index < event.results.length; index += 1) {
-          transcript += event.results[index][0].transcript;
-        }
-        const clean = transcript.trim();
-        if (clean) {
-          setVoiceState(`Entendu: ${shortText(clean, 60)}`, true);
-        }
-        const last = event.results[event.results.length - 1];
-        if (last && last.isFinal && clean) {
-          input.value = clean;
-          form.requestSubmit();
-        }
-      };
-      recognition.onerror = (event) => {
-        listening = false;
-        setVoiceFace("error");
-        const message = event && event.error === "not-allowed"
-          ? "Micro bloque: autorise le micro dans le navigateur."
-          : "Micro indisponible.";
-        setVoiceState(message, false);
-      };
-      recognition.onend = () => {
-        listening = false;
-        if (!waitingForAnswer) {
-          refreshVoiceStatus();
-        }
-      };
-      return recognition;
-    }
-
-    function activateVoiceMode() {
-      voiceMode = !voiceMode;
-      refreshVoiceStatus();
-      if (voiceMode) {
-        autoSpeak = true;
-        refreshVoiceStatus();
-        document.body.classList.add("sidebar-closed");
-        setVoiceState("Mode vocal actif. Autorise le micro si le navigateur le demande.", true);
-        setVoiceFace("listening");
-        startListening();
-      } else {
-        if (recognition && listening) {
-          recognition.stop();
-        }
-        setVoiceFace("idle");
-        setVoiceState("Mode vocal coupe.", false);
-      }
-    }
-
-    function startListening() {
-      const current = ensureRecognition();
-      if (!current) {
-        setVoiceFace("error");
-        setVoiceState("La reconnaissance vocale n'est pas disponible ici.", false);
-        return;
-      }
-      if (listening || waitingForAnswer) {
-        return;
-      }
-      try {
-        current.start();
-      } catch (error) {
-        setVoiceFace("error");
-        setVoiceState("Impossible de lancer le micro.", false);
-      }
-    }
-
-    function toggleListening() {
-      const current = ensureRecognition();
-      if (!current) {
-        setVoiceFace("error");
-        setVoiceState("La reconnaissance vocale n'est pas disponible ici.", false);
-        return;
-      }
-      if (listening) {
-        current.stop();
-        return;
-      }
-      startListening();
     }
 
     function renderBrain(data = {}) {
@@ -1928,59 +1635,6 @@ HTML_PAGE = """<!doctype html>
       });
     }
 
-    if (voiceToggle) {
-      voiceToggle.addEventListener("click", () => {
-        if (!SpeechRecognition) {
-          setVoiceState("Le navigateur ne gère pas le micro vocal.", false);
-          return;
-        }
-        toggleListening();
-      });
-      voiceToggle.dataset.active = "0";
-      if (!SpeechRecognition) {
-        voiceToggle.disabled = true;
-        voiceToggle.textContent = "Micro indisponible";
-        setVoiceState("Micro vocal non pris en charge ici.", false);
-      }
-    }
-
-    if (voiceModeButton) {
-      voiceModeButton.addEventListener("click", () => {
-        if (!SpeechRecognition) {
-          setVoiceState("Le navigateur ne gere pas le micro vocal.", false);
-          return;
-        }
-        activateVoiceMode();
-      });
-      voiceModeButton.dataset.active = "0";
-    }
-
-    if (voiceSpeakToggle) {
-      voiceSpeakToggle.addEventListener("click", () => {
-        autoSpeak = !autoSpeak;
-        refreshVoiceStatus();
-        if (!autoSpeak && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-        }
-      });
-      if (!("speechSynthesis" in window)) {
-        voiceSpeakToggle.disabled = true;
-        voiceSpeakToggle.textContent = "Voix indisponible";
-        setVoiceState("La synthèse vocale n'est pas disponible ici.", false);
-      } else {
-        refreshVoiceStatus();
-        window.speechSynthesis.onvoiceschanged = refreshVoiceStatus;
-      }
-    }
-
-    if (voiceTestButton) {
-      voiceTestButton.addEventListener("click", () => {
-        autoSpeak = true;
-        refreshVoiceStatus();
-        speakText("Bonjour, je suis Lucie. Si tu entends cette phrase, la voix fonctionne.");
-      });
-    }
-
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
@@ -1999,11 +1653,6 @@ HTML_PAGE = """<!doctype html>
       addBubble("user", message);
       hint.textContent = "Analyse en cours...";
       setStatus("Analyse", true);
-      waitingForAnswer = true;
-      if (voiceMode) {
-        setVoiceFace("thinking");
-        setVoiceState("Je reflechis...", true);
-      }
 
       try {
         const res = await fetch("/api/chat", {
@@ -2017,8 +1666,6 @@ HTML_PAGE = """<!doctype html>
         }
 
         addBubble("assistant", data.answer || "OK");
-        waitingForAnswer = false;
-        speakText(data.answer || "OK");
 
         const parts = [];
         if (data.note) parts.push(data.note);
@@ -2047,17 +1694,11 @@ HTML_PAGE = """<!doctype html>
         renderBrain(data);
         setStatus("Réponse", false);
       } catch (error) {
-        waitingForAnswer = false;
-        setVoiceFace("error");
         const text = String(error.message || error);
         addBubble("assistant", text);
         hint.textContent = "Le serveur n'a pas repondu correctement.";
         setStatus("Erreur", false);
-        if (voiceMode && SpeechRecognition) {
-          setTimeout(() => startListening(), 900);
-        }
       } finally {
-        waitingForAnswer = false;
         input.value = "";
         input.focus();
       }
