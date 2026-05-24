@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
@@ -1097,6 +1098,10 @@ HTML_PAGE = """<!doctype html>
           <input id="onboard-name" name="name" placeholder="Ton prenom">
         </div>
         <div class="onboarding-field">
+          <label for="onboard-email">Email pour retrouver ton compte</label>
+          <input id="onboard-email" name="email" type="email" placeholder="toi@email.com">
+        </div>
+        <div class="onboarding-field">
           <label for="onboard-style">Tu preferes quel style ?</label>
           <select id="onboard-style" name="style">
             <option value="simple">Simple et clair</option>
@@ -1437,6 +1442,22 @@ HTML_PAGE = """<!doctype html>
       return `${cut.slice(0, end > 220 ? end + 1 : limit).trim()}\n\n...`;
     }
 
+    function typeInto(node, text, done) {
+      const value = String(text || "");
+      node.textContent = "";
+      let index = 0;
+      const step = Math.max(2, Math.ceil(value.length / 180));
+      const timer = setInterval(() => {
+        index = Math.min(value.length, index + step);
+        node.textContent = value.slice(0, index);
+        chatLog.scrollTop = chatLog.scrollHeight;
+        if (index >= value.length) {
+          clearInterval(timer);
+          if (typeof done === "function") done();
+        }
+      }, 12);
+    }
+
     function addBubble(role, text, save = true, meta = {}) {
       const bubble = document.createElement("div");
       bubble.className = `bubble ${role}`;
@@ -1444,7 +1465,7 @@ HTML_PAGE = """<!doctype html>
       const collapsedText = role === "assistant" && meta.collapsible !== false ? shortAnswer(fullText) : fullText;
       const textNode = document.createElement("div");
       textNode.className = "bubble-text";
-      textNode.textContent = escapeText(collapsedText);
+      textNode.textContent = meta.stream ? "" : escapeText(collapsedText);
       bubble.appendChild(textNode);
       if (role === "assistant" && meta.actions !== false) {
         const actions = document.createElement("div");
@@ -1488,6 +1509,9 @@ HTML_PAGE = """<!doctype html>
       chatLog.scrollTop = chatLog.scrollHeight;
       if (save && role !== "system") {
         rememberMessage(role, text);
+      }
+      if (meta.stream) {
+        typeInto(textNode, escapeText(collapsedText));
       }
       return bubble;
     }
@@ -1634,6 +1658,7 @@ HTML_PAGE = """<!doctype html>
     function collectOnboardingProfile() {
       return {
         name: String(document.getElementById("onboard-name")?.value || "").trim(),
+        email: String(document.getElementById("onboard-email")?.value || "").trim(),
         style: String(document.getElementById("onboard-style")?.value || "simple").trim(),
         goal: String(document.getElementById("onboard-goal")?.value || "").trim(),
         topics: String(document.getElementById("onboard-topics")?.value || "").trim(),
@@ -1776,6 +1801,7 @@ HTML_PAGE = """<!doctype html>
       onboardingSkip.addEventListener("click", () => {
         finishOnboarding({
           name: "",
+          email: "",
           style: "simple",
           goal: "",
           topics: "",
@@ -1821,7 +1847,7 @@ HTML_PAGE = """<!doctype html>
           throw new Error(data.error || "Requete refusee");
         }
 
-        addBubble("assistant", data.answer || "OK", true, { confidence: data.confidence });
+        addBubble("assistant", data.answer || "OK", true, { confidence: data.confidence, stream: true });
 
         const parts = [];
         if (data.note) parts.push(data.note);
@@ -2109,6 +2135,7 @@ ADMIN_PAGE = """<!doctype html>
           <div class="muted">${text(item.conversation)} - ${text(item.confidence_label || "non note")}</div>
           <p>${text(item.answer || "(pas de reponse)")}</p>
           <button type="button" data-question-list="${id}" data-question-index="${index}">Corriger</button>
+          <button type="button" data-fiche-list="${id}" data-fiche-index="${index}">Creer une fiche</button>
         </div>
       `).join("");
       box.querySelectorAll("button[data-question-index]").forEach((button) => {
@@ -2117,6 +2144,15 @@ ADMIN_PAGE = """<!doctype html>
           document.getElementById("teach-question").value = item.question || "";
           document.getElementById("teach-answer").value = item.answer || "";
           document.getElementById("teach-question").focus();
+        });
+      });
+      box.querySelectorAll("button[data-fiche-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = questions[Number(button.dataset.ficheIndex || 0)] || {};
+          document.getElementById("knowledge-category").value = "entrainement";
+          document.getElementById("knowledge-title").value = item.question || "Question utilisateur";
+          document.getElementById("knowledge-content").value = item.answer || "";
+          document.getElementById("knowledge-content").focus();
         });
       });
     }
@@ -2252,6 +2288,7 @@ class AppHandler(BaseHTTPRequestHandler):
     reports_path: Path = Path(__file__).with_name("reports.json")
     users_path: Path = Path(__file__).with_name("users.json")
     chats_path: Path = Path(__file__).with_name("server_chats.json")
+    db_path: Path = Path(__file__).with_name("lucie.db")
     last_memory_save_at: float = 0.0
     pending_memory_saves: int = 0
     email_states: dict[str, str] = {}
@@ -2302,23 +2339,70 @@ class AppHandler(BaseHTTPRequestHandler):
         }
 
     def _load_reports(self) -> list[dict[str, object]]:
-        if not self.reports_path.exists():
-            return []
-        try:
-            raw = json.loads(self.reports_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return []
-        return raw if isinstance(raw, list) else []
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT created_at, session_id, title, question, answer, correction, profile_json, url, user_agent "
+                "FROM reports ORDER BY id ASC LIMIT 300"
+            ).fetchall()
+        return [
+            {
+                "created_at": row["created_at"],
+                "session_id": row["session_id"],
+                "title": row["title"],
+                "question": row["question"],
+                "answer": row["answer"],
+                "correction": row["correction"],
+                "profile": json.loads(row["profile_json"] or "{}"),
+                "url": row["url"],
+                "user_agent": row["user_agent"],
+            }
+            for row in rows
+        ]
 
     def _save_report(self, report: dict[str, object]) -> list[dict[str, object]]:
-        reports = self._load_reports()
-        reports.append(report)
-        reports = reports[-300:]
-        self.reports_path.write_text(
-            json.dumps(reports, ensure_ascii=False, indent=2),
-            encoding="utf-8",
+        with self._db() as db:
+            db.execute(
+                "INSERT INTO reports(created_at, session_id, title, question, answer, correction, profile_json, url, user_agent) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    str(report.get("created_at", "")),
+                    str(report.get("session_id", "")),
+                    str(report.get("title", "")),
+                    str(report.get("question", "")),
+                    str(report.get("answer", "")),
+                    str(report.get("correction", "")),
+                    json.dumps(report.get("profile", {}), ensure_ascii=False),
+                    str(report.get("url", "")),
+                    str(report.get("user_agent", "")),
+                ),
+            )
+        return self._load_reports()
+
+    def _db(self) -> sqlite3.Connection:
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        db = sqlite3.connect(self.db_path)
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS users("
+            "session_id TEXT PRIMARY KEY, email TEXT, name TEXT, profile_json TEXT NOT NULL, updated_at TEXT NOT NULL)"
         )
-        return reports
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS chats("
+            "session_id TEXT NOT NULL, conversation_id TEXT NOT NULL, title TEXT NOT NULL, "
+            "messages_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, "
+            "PRIMARY KEY(session_id, conversation_id))"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS reports("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, session_id TEXT, title TEXT, question TEXT, "
+            "answer TEXT, correction TEXT, profile_json TEXT, url TEXT, user_agent TEXT)"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS training_events("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL)"
+        )
+        return db
 
     def _load_json_dict(self, path: Path) -> dict[str, object]:
         if not path.exists():
@@ -2333,23 +2417,61 @@ class AppHandler(BaseHTTPRequestHandler):
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _current_profile(self) -> dict[str, object]:
-        users = self._load_json_dict(self.users_path)
-        profile = users.get(self._session_id(), {})
+        with self._db() as db:
+            row = db.execute(
+                "SELECT profile_json FROM users WHERE session_id = ?",
+                (self._session_id(),),
+            ).fetchone()
+        if not row:
+            return {}
+        try:
+            profile = json.loads(row["profile_json"] or "{}")
+        except json.JSONDecodeError:
+            return {}
         return profile if isinstance(profile, dict) else {}
 
     def _save_profile(self, profile: dict[str, object]) -> dict[str, object]:
-        allowed = {"name", "style", "goal", "topics", "createdAt", "updatedAt", "skipped"}
+        allowed = {"name", "email", "style", "goal", "topics", "createdAt", "updatedAt", "skipped"}
         clean = {key: str(value).strip()[:500] for key, value in profile.items() if key in allowed and value is not None}
         clean["updatedAt"] = datetime.now(timezone.utc).isoformat()
-        users = self._load_json_dict(self.users_path)
-        users[self._session_id()] = clean
-        self._write_json_dict(self.users_path, users)
+        with self._db() as db:
+            db.execute(
+                "INSERT INTO users(session_id, email, name, profile_json, updated_at) VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(session_id) DO UPDATE SET email=excluded.email, name=excluded.name, "
+                "profile_json=excluded.profile_json, updated_at=excluded.updated_at",
+                (
+                    self._session_id(),
+                    str(clean.get("email", "")),
+                    str(clean.get("name", "")),
+                    json.dumps(clean, ensure_ascii=False),
+                    str(clean["updatedAt"]),
+                ),
+            )
         return clean
 
     def _load_session_chats(self) -> list[dict[str, object]]:
-        chats = self._load_json_dict(self.chats_path)
-        items = chats.get(self._session_id(), [])
-        return items if isinstance(items, list) else []
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT conversation_id, title, messages_json, created_at, updated_at FROM chats "
+                "WHERE session_id = ? ORDER BY updated_at DESC LIMIT 30",
+                (self._session_id(),),
+            ).fetchall()
+        conversations: list[dict[str, object]] = []
+        for row in rows:
+            try:
+                messages = json.loads(row["messages_json"] or "[]")
+            except json.JSONDecodeError:
+                messages = []
+            conversations.append(
+                {
+                    "id": row["conversation_id"],
+                    "title": row["title"],
+                    "messages": messages if isinstance(messages, list) else [],
+                    "createdAt": row["created_at"],
+                    "updatedAt": row["updated_at"],
+                }
+            )
+        return conversations
 
     def _save_chat_turn(
         self,
@@ -2361,23 +2483,21 @@ class AppHandler(BaseHTTPRequestHandler):
     ) -> list[dict[str, object]]:
         conversation_id = conversation_id[:96] or secrets.token_urlsafe(12)
         title = (title or "Nouveau chat").strip()[:80] or "Nouveau chat"
-        chats = self._load_json_dict(self.chats_path)
         session_id = self._session_id()
-        conversations = chats.get(session_id, [])
-        if not isinstance(conversations, list):
-            conversations = []
-        conversation = next((item for item in conversations if isinstance(item, dict) and item.get("id") == conversation_id), None)
-        if conversation is None:
-            conversation = {
-                "id": conversation_id,
-                "title": title,
-                "messages": [],
-                "createdAt": int(time.time() * 1000),
-            }
-            conversations.insert(0, conversation)
-        conversation["title"] = title
-        conversation["updatedAt"] = int(time.time() * 1000)
-        messages = conversation.get("messages", [])
+        now_ms = int(time.time() * 1000)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT messages_json, created_at FROM chats WHERE session_id = ? AND conversation_id = ?",
+                (session_id, conversation_id),
+            ).fetchone()
+        messages = []
+        created_at = now_ms
+        if row:
+            created_at = int(row["created_at"] or now_ms)
+            try:
+                messages = json.loads(row["messages_json"] or "[]")
+            except json.JSONDecodeError:
+                messages = []
         if not isinstance(messages, list):
             messages = []
         messages.extend([
@@ -2389,49 +2509,53 @@ class AppHandler(BaseHTTPRequestHandler):
                 "confidence_label": (confidence or {}).get("confidence_label"),
             },
         ])
-        conversation["messages"] = messages[-120:]
-        chats[session_id] = conversations[:30]
-        self._write_json_dict(self.chats_path, chats)
-        return chats[session_id]
+        messages = messages[-120:]
+        with self._db() as db:
+            db.execute(
+                "INSERT INTO chats(session_id, conversation_id, title, messages_json, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(session_id, conversation_id) DO UPDATE SET title=excluded.title, "
+                "messages_json=excluded.messages_json, updated_at=excluded.updated_at",
+                (session_id, conversation_id, title, json.dumps(messages, ensure_ascii=False), created_at, now_ms),
+            )
+        return self._load_session_chats()
 
     def _recent_server_questions(self) -> list[dict[str, object]]:
-        rows: list[dict[str, object]] = []
-        chats = self._load_json_dict(self.chats_path)
-        for session_id, conversations in chats.items():
-            if not isinstance(conversations, list):
-                continue
-            for conversation in conversations:
-                if not isinstance(conversation, dict):
-                    continue
-                messages = conversation.get("messages", [])
-                if not isinstance(messages, list):
-                    continue
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT session_id, title, messages_json, updated_at FROM chats ORDER BY updated_at DESC LIMIT 200"
+            ).fetchall()
+        questions: list[dict[str, object]] = []
+        for row in rows:
+            try:
+                messages = json.loads(row["messages_json"] or "[]")
+            except json.JSONDecodeError:
+                messages = []
+            if isinstance(messages, list):
                 for index, item in enumerate(messages):
                     if not isinstance(item, dict) or item.get("role") != "user":
                         continue
                     answer = messages[index + 1] if index + 1 < len(messages) and isinstance(messages[index + 1], dict) else {}
-                    rows.append(
+                    questions.append(
                         {
-                            "session_id": str(session_id)[:12],
-                            "conversation": str(conversation.get("title", "Chat")),
+                            "session_id": str(row["session_id"])[:12],
+                            "conversation": str(row["title"] or "Chat"),
                             "question": str(item.get("text", "")),
                             "answer": str(answer.get("text", "")),
                             "confidence": answer.get("confidence"),
                             "confidence_label": answer.get("confidence_label"),
-                            "updatedAt": conversation.get("updatedAt", 0),
+                            "updatedAt": row["updated_at"] or 0,
                         }
                     )
-        rows.sort(key=lambda item: int(item.get("updatedAt") or 0), reverse=True)
-        return rows[:80]
+        questions.sort(key=lambda item: int(item.get("updatedAt") or 0), reverse=True)
+        return questions[:80]
 
     def _admin_overview_payload(self) -> dict[str, object]:
         return {
             "status": self._status_payload(),
             "reports": list(reversed(self._load_reports()[-100:])),
-            "user_count": len(self._load_json_dict(self.users_path)),
-            "server_chat_count": sum(
-                len(value) for value in self._load_json_dict(self.chats_path).values() if isinstance(value, list)
-            ),
+            "user_count": self._db_count("users"),
+            "server_chat_count": self._db_count("chats"),
             "memory_notes": self.bot.list_memory_notes()[-80:],
             "memory_sources": self.bot.list_memory_sources(),
             "preferences": self.bot.list_preferences(),
@@ -2447,6 +2571,13 @@ class AppHandler(BaseHTTPRequestHandler):
                 for turn in self.bot.history[-30:]
             ],
         }
+
+    def _db_count(self, table: str) -> int:
+        if table not in {"users", "chats", "reports", "training_events"}:
+            return 0
+        with self._db() as db:
+            row = db.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()
+        return int(row["count"] if row else 0)
 
     def _confidence_payload(self, message: str, answer: str) -> dict[str, object]:
         message_n = " ".join(message.lower().split())
@@ -3192,6 +3323,7 @@ class AppHandler(BaseHTTPRequestHandler):
         if isinstance(profile, dict):
             parts = []
             name = str(profile.get("name", "")).strip()
+            email = str(profile.get("email", "")).strip()
             style = str(profile.get("style", "")).strip()
             goal = str(profile.get("goal", "")).strip()
             topics = str(profile.get("topics", "")).strip()
@@ -3207,6 +3339,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 profile_hint = "Profil utilisateur: " + "; ".join(parts)
             for key, value in {
                 "prenom": name,
+                "email": email,
                 "style": style,
                 "objectif": goal,
                 "sujets": topics,
