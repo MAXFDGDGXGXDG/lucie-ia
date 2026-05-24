@@ -614,6 +614,34 @@ HTML_PAGE = """<!doctype html>
       font-size: 13px;
       font-weight: 700;
     }
+    .bubble-text {
+      white-space: pre-wrap;
+    }
+    .bubble-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .bubble-actions button,
+    .confidence-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      color: #374151;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .bubble-actions button {
+      cursor: pointer;
+    }
+    .confidence-pill {
+      border-color: #d1fae5;
+      color: #047857;
+      background: #ecfdf5;
+    }
     .bubble.system {
       width: 100%;
       color: #6b7280;
@@ -1300,8 +1328,8 @@ HTML_PAGE = """<!doctype html>
       };
     }
 
-    async function reportBadAnswer() {
-      const report = latestProblemReport();
+    async function reportBadAnswer(reportOverride = null) {
+      const report = reportOverride || latestProblemReport();
       if (!report || !report.question) {
         alert("Il faut d'abord poser une question a Lucie.");
         return;
@@ -1353,10 +1381,45 @@ HTML_PAGE = """<!doctype html>
       setStatus("Signalement prepare");
     }
 
-    function addBubble(role, text, save = true) {
+    function confidenceText(confidence) {
+      const value = Number(confidence || 0);
+      if (value >= 0.78) return "Confiance haute";
+      if (value >= 0.52) return "Confiance moyenne";
+      return "A verifier";
+    }
+
+    function addBubble(role, text, save = true, meta = {}) {
       const bubble = document.createElement("div");
       bubble.className = `bubble ${role}`;
-      bubble.textContent = escapeText(text);
+      const textNode = document.createElement("div");
+      textNode.className = "bubble-text";
+      textNode.textContent = escapeText(text);
+      bubble.appendChild(textNode);
+      if (role === "assistant" && meta.actions !== false) {
+        const actions = document.createElement("div");
+        actions.className = "bubble-actions";
+        if (typeof meta.confidence === "number") {
+          const pill = document.createElement("span");
+          pill.className = "confidence-pill";
+          pill.textContent = confidenceText(meta.confidence);
+          actions.appendChild(pill);
+        }
+        const improve = document.createElement("button");
+        improve.type = "button";
+        improve.textContent = "Ameliorer cette reponse";
+        improve.addEventListener("click", () => {
+          const conversation = currentConversation();
+          const messages = conversation ? conversation.messages : [];
+          const lastUser = [...messages].reverse().find((message) => message.role === "user");
+          reportBadAnswer({
+            title: conversation ? conversation.title : "Discussion Lucie",
+            question: String(lastUser ? lastUser.text : "").trim(),
+            answer: String(text || "").trim(),
+          });
+        });
+        actions.appendChild(improve);
+        bubble.appendChild(actions);
+      }
       chatLog.appendChild(bubble);
       chatLog.scrollTop = chatLog.scrollHeight;
       if (save && role !== "system") {
@@ -1687,7 +1750,7 @@ HTML_PAGE = """<!doctype html>
           throw new Error(data.error || "Requete refusee");
         }
 
-        addBubble("assistant", data.answer || "OK");
+        addBubble("assistant", data.answer || "OK", true, { confidence: data.confidence });
 
         const parts = [];
         if (data.note) parts.push(data.note);
@@ -1708,6 +1771,9 @@ HTML_PAGE = """<!doctype html>
         }
         if (typeof data.memory_sources_count === "number") {
           parts.push(`Sources memoire: ${data.memory_sources_count}`);
+        }
+        if (data.confidence_label) {
+          parts.push(`Confiance: ${data.confidence_label}`);
         }
         if (data.pending_action) {
           parts.push(`Mode: ${data.pending_action}`);
@@ -1825,6 +1891,25 @@ ADMIN_PAGE = """<!doctype html>
     </section>
     <section class="columns">
       <div class="card">
+        <h2>Base de connaissances</h2>
+        <form id="knowledge-form">
+          <input id="knowledge-category" type="text" placeholder="Categorie: ecole, code, robotique...">
+          <input id="knowledge-title" type="text" placeholder="Titre de la fiche">
+          <textarea id="knowledge-content" rows="6" placeholder="Information fiable que Lucie doit utiliser"></textarea>
+          <button class="primary" type="submit">Ajouter la fiche</button>
+          <div id="knowledge-status" class="muted"></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Mode d'emploi rapide</h2>
+        <p class="summary muted">1. Un utilisateur signale une mauvaise reponse.
+2. Tu cliques sur "Corriger" dans les signalements.
+3. Tu valides la bonne reponse.
+4. Lucie reutilise cette correction dans les prochains chats.</p>
+      </div>
+    </section>
+    <section class="columns">
+      <div class="card">
         <h2>Signalements des utilisateurs</h2>
         <div id="reports" class="list"></div>
       </div>
@@ -1888,14 +1973,23 @@ ADMIN_PAGE = """<!doctype html>
         box.innerHTML = '<div class="muted">Aucun signalement pour le moment.</div>';
         return;
       }
-      box.innerHTML = reports.map((item) => `
+      box.innerHTML = reports.map((item, index) => `
         <div class="item">
           <strong>${text(item.question)}</strong>
           <div class="muted">${text(item.created_at)} - ${text(item.title)}</div>
           <p>Reponse: ${text(item.answer || "(vide)")}</p>
           <p>Correction demandee: ${text(item.correction || "(non precisee)")}</p>
+          <button type="button" data-report-index="${index}">Corriger</button>
         </div>
       `).join("");
+      box.querySelectorAll("button[data-report-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = reports[Number(button.dataset.reportIndex || 0)] || {};
+          document.getElementById("teach-question").value = item.question || "";
+          document.getElementById("teach-answer").value = item.correction || item.answer || "";
+          document.getElementById("teach-question").focus();
+        });
+      });
     }
     function renderSubjects(subjects) {
       const entries = Object.entries(subjects);
@@ -1943,6 +2037,27 @@ ADMIN_PAGE = """<!doctype html>
       status.textContent = response.ok ? "Lucie a appris cette correction." : "Impossible d'apprendre pour le moment.";
       if (response.ok) {
         document.getElementById("teach-form").reset();
+        loadAdmin();
+      }
+    });
+    document.getElementById("knowledge-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const category = document.getElementById("knowledge-category").value.trim() || "general";
+      const title = document.getElementById("knowledge-title").value.trim() || "Fiche";
+      const content = document.getElementById("knowledge-content").value.trim();
+      const status = document.getElementById("knowledge-status");
+      if (!content) {
+        status.textContent = "Contenu obligatoire.";
+        return;
+      }
+      const response = await fetch("/api/document", {
+        method: "POST",
+        headers: headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ title: `[${category}] ${title}`, content }),
+      });
+      status.textContent = response.ok ? "Fiche ajoutee a la base de connaissances." : "Impossible d'ajouter la fiche.";
+      if (response.ok) {
+        document.getElementById("knowledge-form").reset();
         loadAdmin();
       }
     });
@@ -2037,6 +2152,45 @@ class AppHandler(BaseHTTPRequestHandler):
                 {"user": turn.user, "assistant": turn.assistant}
                 for turn in self.bot.history[-30:]
             ],
+        }
+
+    def _confidence_payload(self, message: str, answer: str) -> dict[str, object]:
+        message_n = " ".join(message.lower().split())
+        answer_n = " ".join(answer.lower().split())
+        confidence = 0.58
+        reasons: list[str] = []
+        if self.bot._answer_calculation(message) is not None:
+            confidence = 0.92
+            reasons.append("calcul")
+        if self.bot._find_exact_or_partial(message_n):
+            confidence = max(confidence, 0.9)
+            reasons.append("reponse apprise")
+        if self.bot._answer_from_documents(message):
+            confidence = max(confidence, 0.82)
+            reasons.append("document")
+        if self.bot._detect_subject(message) or self.bot.last_subject:
+            confidence = max(confidence, 0.68)
+            reasons.append("contexte")
+        uncertainty = (
+            "je ne sais pas",
+            "pas sur",
+            "pas sûr",
+            "a verifier",
+            "je peux me tromper",
+            "question vague",
+            "precise",
+            "précise",
+        )
+        if any(part in answer_n for part in uncertainty):
+            confidence = min(confidence, 0.48)
+            reasons.append("incertain")
+        if len(answer_n.split()) < 6:
+            confidence = min(confidence, 0.55)
+        label = "haute" if confidence >= 0.78 else "moyenne" if confidence >= 0.52 else "faible"
+        return {
+            "confidence": round(confidence, 2),
+            "confidence_label": label,
+            "confidence_reasons": reasons[:4],
         }
 
     def _session_id(self) -> str:
@@ -2700,6 +2854,14 @@ class AppHandler(BaseHTTPRequestHandler):
                 parts.append(f"sujets={topics}")
             if parts:
                 profile_hint = "Profil utilisateur: " + "; ".join(parts)
+            for key, value in {
+                "prenom": name,
+                "style": style,
+                "objectif": goal,
+                "sujets": topics,
+            }.items():
+                if value:
+                    self.bot.remember_preference(key, value)
 
         try:
             if message.startswith("/teach"):
@@ -2726,6 +2888,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 subject = self.bot._detect_subject(message)
                 self.bot._remember(message, answer_text)
                 self.bot._remember_subject(subject, message, answer_text)
+            self.bot.save()
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
             return
@@ -2736,6 +2899,7 @@ class AppHandler(BaseHTTPRequestHandler):
             )
             return
 
+        confidence = self._confidence_payload(message, answer_text)
         self._send_json(
             {
                 "answer": answer_text,
@@ -2756,6 +2920,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 "entities": [],
                 "knowledge": [],
                 "pending_action": self.bot.pending_action,
+                **confidence,
             }
         )
 
