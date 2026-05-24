@@ -40,16 +40,23 @@ def prepare_cloud_data() -> Path:
 
     bundled_memory = APP_ROOT / "ia_apprend" / "memory.json"
     target_memory = memory_dir / "memory.json"
-    if bundled_memory.exists() and not target_memory.exists():
+    if bundled_memory.exists() and not target_memory.exists() and not _same_file(bundled_memory, target_memory):
         shutil.copy2(bundled_memory, target_memory)
 
     for name in DATA_FILES:
         src = APP_ROOT / name
         dst = data_root / name
-        if src.exists():
+        if src.exists() and not _same_file(src, dst):
             shutil.copy2(src, dst)
 
     return target_memory
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except OSError:
+        return False
 
 
 def main() -> None:

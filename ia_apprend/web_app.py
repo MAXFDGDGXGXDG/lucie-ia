@@ -2380,9 +2380,13 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def _db(self) -> sqlite3.Connection:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        db = sqlite3.connect(self.db_path)
+        db = sqlite3.connect(self.db_path, timeout=10)
         db.row_factory = sqlite3.Row
-        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA busy_timeout=5000")
+        try:
+            db.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.DatabaseError:
+            pass
         db.execute(
             "CREATE TABLE IF NOT EXISTS users("
             "session_id TEXT PRIMARY KEY, email TEXT, name TEXT, profile_json TEXT NOT NULL, updated_at TEXT NOT NULL)"
@@ -3194,9 +3198,6 @@ class AppHandler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/status":
-            if not self._authorized():
-                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
-                return
             self._send_json(self._status_payload())
             return
         if path == "/api/admin/overview":
