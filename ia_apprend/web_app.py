@@ -2148,6 +2148,8 @@ class AppHandler(BaseHTTPRequestHandler):
     reports_path: Path = Path(__file__).with_name("reports.json")
     users_path: Path = Path(__file__).with_name("users.json")
     chats_path: Path = Path(__file__).with_name("server_chats.json")
+    last_memory_save_at: float = 0.0
+    pending_memory_saves: int = 0
     email_states: dict[str, str] = {}
     email_tokens: dict[str, dict[str, object]] = {}
     calendar_states: dict[str, str] = {}
@@ -2300,13 +2302,10 @@ class AppHandler(BaseHTTPRequestHandler):
         answer_n = " ".join(answer.lower().split())
         confidence = 0.58
         reasons: list[str] = []
-        if self.bot._answer_calculation(message) is not None:
+        if any(char.isdigit() for char in message) and any(op in message for op in ("+", "-", "*", "/", "x", "÷")):
             confidence = 0.92
             reasons.append("calcul")
-        if self.bot._find_exact_or_partial(message_n):
-            confidence = max(confidence, 0.9)
-            reasons.append("reponse apprise")
-        if self.bot._answer_from_documents(message):
+        if any(word in answer_n for word in ("document", "fiche", "base de connaissances", "d'apres", "d'après")):
             confidence = max(confidence, 0.82)
             reasons.append("document")
         if self.bot._detect_subject(message) or self.bot.last_subject:
@@ -2336,6 +2335,15 @@ class AppHandler(BaseHTTPRequestHandler):
             "confidence_label": label,
             "confidence_reasons": reasons[:4],
         }
+
+    def _save_memory_soon(self, force: bool = False) -> None:
+        now = time.time()
+        type(self).pending_memory_saves += 1
+        if not force and type(self).pending_memory_saves < 8 and now - type(self).last_memory_save_at < 60:
+            return
+        self.bot.save()
+        type(self).last_memory_save_at = now
+        type(self).pending_memory_saves = 0
 
     def _session_id(self) -> str:
         cookie = self.headers.get("Cookie", "")
@@ -3041,7 +3049,7 @@ class AppHandler(BaseHTTPRequestHandler):
             if message.startswith("/teach"):
                 question, answer = self._parse_teach_command(message)
                 self.bot.teach(question, answer)
-                self.bot.save()
+                self._save_memory_soon(force=True)
                 self._send_json(
                     {
                         "answer": "Bien recu, j'ai appris ca.",
@@ -3062,7 +3070,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 subject = self.bot._detect_subject(message)
                 self.bot._remember(message, answer_text)
                 self.bot._remember_subject(subject, message, answer_text)
-            self.bot.save()
+            self._save_memory_soon()
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
             return
@@ -3129,7 +3137,7 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         try:
             self.bot.teach(question, answer)
-            self.bot.save()
+            self._save_memory_soon(force=True)
         except OSError as exc:
             self._send_json(
                 {"error": f"Erreur de sauvegarde: {exc}"},
@@ -3146,7 +3154,7 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         try:
             self.bot.add_document(title, content)
-            self.bot.save()
+            self._save_memory_soon(force=True)
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
             return
@@ -3280,6 +3288,8 @@ def run_web_server(host: str, port: int, memory_path: Path) -> None:
             api_key_file.write_text(api_key + "\n", encoding="utf-8")
     AppHandler.api_key = api_key
     AppHandler.admin_code = os.getenv("ADMIN_ACCESS_CODE", "042724").strip() or "042724"
+    AppHandler.last_memory_save_at = time.time()
+    AppHandler.pending_memory_saves = 0
     try:
         server = ThreadingHTTPServer((host, port), AppHandler)
     except OSError as exc:
