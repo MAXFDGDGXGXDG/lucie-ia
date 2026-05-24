@@ -1211,6 +1211,31 @@ HTML_PAGE = """<!doctype html>
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     }
 
+    async function saveProfileToServer(profile) {
+      try {
+        await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile }),
+        });
+      } catch (error) {
+        console.warn("Profile sync failed", error);
+      }
+    }
+
+    async function loadProfileFromServer() {
+      if (userProfile) return;
+      try {
+        const response = await fetch("/api/profile");
+        const data = await response.json();
+        if (data.profile && Object.keys(data.profile).length) {
+          saveProfile(data.profile);
+        }
+      } catch (error) {
+        console.warn("Profile load failed", error);
+      }
+    }
+
     function profileName() {
       return userProfile && userProfile.name ? String(userProfile.name).trim() : "";
     }
@@ -1244,6 +1269,22 @@ HTML_PAGE = """<!doctype html>
 
     function saveConversations() {
       localStorage.setItem(STORE_KEY, JSON.stringify(conversations.slice(0, 30)));
+    }
+
+    async function loadServerConversations() {
+      try {
+        const response = await fetch("/api/conversations");
+        const data = await response.json();
+        if (Array.isArray(data.conversations) && data.conversations.length) {
+          conversations = data.conversations;
+          activeConversationId = conversations[0].id;
+          saveConversations();
+          renderConversation();
+          renderChatList();
+        }
+      } catch (error) {
+        console.warn("Server history unavailable", error);
+      }
     }
 
     function currentConversation() {
@@ -1557,6 +1598,7 @@ HTML_PAGE = """<!doctype html>
 
     function finishOnboarding(profile) {
       saveProfile(profile);
+      saveProfileToServer(profile);
       if (onboarding) {
         onboarding.hidden = true;
       }
@@ -1736,6 +1778,7 @@ HTML_PAGE = """<!doctype html>
 
       ensureWelcome();
       addBubble("user", message);
+      const activeConversation = currentConversation();
       hint.textContent = "Analyse en cours...";
       setStatus("Analyse", true);
 
@@ -1743,7 +1786,12 @@ HTML_PAGE = """<!doctype html>
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ message, profile: userProfile || {} }),
+          body: JSON.stringify({
+            message,
+            profile: userProfile || {},
+            conversation_id: activeConversation ? activeConversation.id : "",
+            conversation_title: activeConversation ? activeConversation.title : "",
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1795,11 +1843,12 @@ HTML_PAGE = """<!doctype html>
     loadConversations();
     renderConversation();
     renderChatList();
+    loadProfileFromServer().then(() => showOnboardingIfNeeded());
+    loadServerConversations();
     input.focus();
     loadStatus();
     loadEmailStatus();
     loadCalendarStatus();
-    showOnboardingIfNeeded();
   </script>
 </body>
 </html>
@@ -1873,6 +1922,8 @@ ADMIN_PAGE = """<!doctype html>
       <div class="card stat"><span>Sujets</span><strong id="subjects-count">0</strong></div>
       <div class="card stat"><span>Documents</span><strong id="document-count">0</strong></div>
       <div class="card stat"><span>Signalements</span><strong id="reports-count">0</strong></div>
+      <div class="card stat"><span>Utilisateurs</span><strong id="users-count">0</strong></div>
+      <div class="card stat"><span>Chats serveur</span><strong id="server-chats-count">0</strong></div>
     </section>
     <section class="columns">
       <div class="card">
@@ -1898,6 +1949,11 @@ ADMIN_PAGE = """<!doctype html>
           <textarea id="knowledge-content" rows="6" placeholder="Information fiable que Lucie doit utiliser"></textarea>
           <button class="primary" type="submit">Ajouter la fiche</button>
           <div id="knowledge-status" class="muted"></div>
+        </form>
+        <form id="search-form" style="margin-top:14px">
+          <input id="search-query" type="text" placeholder="Chercher dans la base">
+          <button type="submit">Rechercher</button>
+          <div id="search-results" class="list"></div>
         </form>
       </div>
       <div class="card">
@@ -1963,6 +2019,8 @@ ADMIN_PAGE = """<!doctype html>
       set("subjects-count", status.subjects_count || 0);
       set("document-count", status.document_count || 0);
       set("reports-count", (data.reports || []).length);
+      set("users-count", data.user_count || 0);
+      set("server-chats-count", data.server_chat_count || 0);
       document.getElementById("summary").textContent = status.conversation_summary || "Pas encore de memoire.";
       renderReports(data.reports || []);
       renderSubjects(data.subject_briefs || {});
@@ -2061,6 +2119,21 @@ ADMIN_PAGE = """<!doctype html>
         loadAdmin();
       }
     });
+    document.getElementById("search-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const query = document.getElementById("search-query").value.trim();
+      const box = document.getElementById("search-results");
+      if (!query) {
+        box.innerHTML = '<div class="muted">Entre une recherche.</div>';
+        return;
+      }
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      const results = data.results || [];
+      box.innerHTML = results.length
+        ? results.map((item) => `<div class="item"><strong>${text(item.source || "Document")}</strong><p>${text(item.content)}</p><div class="muted">Score ${Math.round((item.score || 0) * 100)}%</div></div>`).join("")
+        : '<div class="muted">Aucun resultat trouve.</div>';
+    });
     loadAdmin();
   </script>
 </body>
@@ -2073,6 +2146,8 @@ class AppHandler(BaseHTTPRequestHandler):
     api_key: str = ""
     admin_code: str = "042724"
     reports_path: Path = Path(__file__).with_name("reports.json")
+    users_path: Path = Path(__file__).with_name("users.json")
+    chats_path: Path = Path(__file__).with_name("server_chats.json")
     email_states: dict[str, str] = {}
     email_tokens: dict[str, dict[str, object]] = {}
     calendar_states: dict[str, str] = {}
@@ -2139,10 +2214,76 @@ class AppHandler(BaseHTTPRequestHandler):
         )
         return reports
 
+    def _load_json_dict(self, path: Path) -> dict[str, object]:
+        if not path.exists():
+            return {}
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        return raw if isinstance(raw, dict) else {}
+
+    def _write_json_dict(self, path: Path, payload: dict[str, object]) -> None:
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _current_profile(self) -> dict[str, object]:
+        users = self._load_json_dict(self.users_path)
+        profile = users.get(self._session_id(), {})
+        return profile if isinstance(profile, dict) else {}
+
+    def _save_profile(self, profile: dict[str, object]) -> dict[str, object]:
+        allowed = {"name", "style", "goal", "topics", "createdAt", "updatedAt", "skipped"}
+        clean = {key: str(value).strip()[:500] for key, value in profile.items() if key in allowed and value is not None}
+        clean["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        users = self._load_json_dict(self.users_path)
+        users[self._session_id()] = clean
+        self._write_json_dict(self.users_path, users)
+        return clean
+
+    def _load_session_chats(self) -> list[dict[str, object]]:
+        chats = self._load_json_dict(self.chats_path)
+        items = chats.get(self._session_id(), [])
+        return items if isinstance(items, list) else []
+
+    def _save_chat_turn(self, conversation_id: str, title: str, question: str, answer: str) -> list[dict[str, object]]:
+        conversation_id = conversation_id[:96] or secrets.token_urlsafe(12)
+        title = (title or "Nouveau chat").strip()[:80] or "Nouveau chat"
+        chats = self._load_json_dict(self.chats_path)
+        session_id = self._session_id()
+        conversations = chats.get(session_id, [])
+        if not isinstance(conversations, list):
+            conversations = []
+        conversation = next((item for item in conversations if isinstance(item, dict) and item.get("id") == conversation_id), None)
+        if conversation is None:
+            conversation = {
+                "id": conversation_id,
+                "title": title,
+                "messages": [],
+                "createdAt": int(time.time() * 1000),
+            }
+            conversations.insert(0, conversation)
+        conversation["title"] = title
+        conversation["updatedAt"] = int(time.time() * 1000)
+        messages = conversation.get("messages", [])
+        if not isinstance(messages, list):
+            messages = []
+        messages.extend([
+            {"role": "user", "text": question},
+            {"role": "assistant", "text": answer},
+        ])
+        conversation["messages"] = messages[-120:]
+        chats[session_id] = conversations[:30]
+        self._write_json_dict(self.chats_path, chats)
+        return chats[session_id]
+
     def _admin_overview_payload(self) -> dict[str, object]:
         return {
             "status": self._status_payload(),
             "reports": list(reversed(self._load_reports()[-100:])),
+            "user_count": len(self._load_json_dict(self.users_path)),
+            "server_chat_count": sum(
+                len(value) for value in self._load_json_dict(self.chats_path).values() if isinstance(value, list)
+            ),
             "memory_notes": self.bot.list_memory_notes()[-80:],
             "memory_sources": self.bot.list_memory_sources(),
             "preferences": self.bot.list_preferences(),
@@ -2171,6 +2312,9 @@ class AppHandler(BaseHTTPRequestHandler):
         if self.bot._detect_subject(message) or self.bot.last_subject:
             confidence = max(confidence, 0.68)
             reasons.append("contexte")
+        if self.bot._is_vague_question(message) and not reasons:
+            confidence = 0.38
+            reasons.append("question vague")
         uncertainty = (
             "je ne sais pas",
             "pas sur",
@@ -2771,6 +2915,25 @@ class AppHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(self._admin_overview_payload())
             return
+        if path == "/api/profile":
+            self._send_json({"ok": True, "profile": self._current_profile()})
+            return
+        if path == "/api/conversations":
+            self._send_json({"ok": True, "conversations": self._load_session_chats()})
+            return
+        if path == "/api/search":
+            query = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()
+            snippets = self.bot.predict_documents(query)[:8] if query else []
+            self._send_json(
+                {
+                    "ok": True,
+                    "results": [
+                        {"content": item.content, "score": item.score, "source": item.source}
+                        for item in snippets
+                    ],
+                }
+            )
+            return
         if path == "/api/email/status":
             self._send_json(self._email_status_payload())
             return
@@ -2828,6 +2991,13 @@ class AppHandler(BaseHTTPRequestHandler):
         if path == "/api/report":
             self._handle_report(body)
             return
+        if path == "/api/profile":
+            profile = body.get("profile", body)
+            if not isinstance(profile, dict):
+                self._send_json({"error": "Profil invalide"}, status=HTTPStatus.BAD_REQUEST)
+                return
+            self._send_json({"ok": True, "profile": self._save_profile(profile)})
+            return
 
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
@@ -2862,6 +3032,10 @@ class AppHandler(BaseHTTPRequestHandler):
             }.items():
                 if value:
                     self.bot.remember_preference(key, value)
+            if any((name, style, goal, topics)):
+                self._save_profile(profile)
+        conversation_id = str(body.get("conversation_id", "")).strip()
+        conversation_title = str(body.get("conversation_title", "")).strip()
 
         try:
             if message.startswith("/teach"):
@@ -2900,6 +3074,17 @@ class AppHandler(BaseHTTPRequestHandler):
             return
 
         confidence = self._confidence_payload(message, answer_text)
+        if confidence["confidence"] < 0.45:
+            answer_text = (
+                "Je ne suis pas assez sure pour repondre proprement. "
+                "Peux-tu preciser le sujet, ou me donner une phrase de contexte ?"
+            )
+            confidence = {"confidence": 0.32, "confidence_label": "faible", "confidence_reasons": ["incertain"]}
+        if conversation_id:
+            try:
+                self._save_chat_turn(conversation_id, conversation_title, message, answer_text)
+            except OSError:
+                pass
         self._send_json(
             {
                 "answer": answer_text,

@@ -18,6 +18,8 @@ bridge_*.log
 ia_apprend/memory.json
 ia_apprend/ia_api_key.txt
 ia_apprend/reports.json
+ia_apprend/users.json
+ia_apprend/server_chats.json
 fresh_memory*.json
 tmp_memory.json
 _tmp_dify_cfg.json
