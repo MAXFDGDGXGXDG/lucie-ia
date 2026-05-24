@@ -71,6 +71,7 @@ DEFAULT_EXAMPLES: list[dict[str, str]] = [
     },
 ]
 MAX_HISTORY_TURNS = 30
+MAX_SAVED_EXAMPLES = 5000
 def _make_french_spellchecker() -> Any:
     if SpellChecker is None:
         return None
@@ -1138,7 +1139,7 @@ class LearningBot:
         payload = {
             "model": self.model,
             "api_available": self.api_available,
-            "examples": self.examples,
+            "examples": self.examples[-MAX_SAVED_EXAMPLES:],
             "documents": [
                 {"title": doc.title, "content": doc.content}
                 for doc in self.documents[-20:]
@@ -1161,6 +1162,44 @@ class LearningBot:
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+
+    def compact_memory(self) -> dict[str, int]:
+        before = {
+            "examples": len(self.examples),
+            "memory_notes": len(self.memory_notes),
+            "subjects": len(self.subject_memory),
+            "subject_notes": sum(len(notes) for notes in self.subject_memory.values()),
+            "documents": len(self.documents),
+        }
+        self.examples = self.examples[-MAX_SAVED_EXAMPLES:]
+        self.memory_notes = list(dict.fromkeys(self.memory_notes))[-20:]
+        self.memory_sources = {
+            key: list(dict.fromkeys(values))[-20:]
+            for key, values in self.memory_sources.items()
+            if values
+        }
+        compact_subjects: dict[str, list[str]] = {}
+        for subject, notes in self.subject_memory.items():
+            unique_notes = list(dict.fromkeys(notes))[-8:]
+            if unique_notes:
+                compact_subjects[subject] = unique_notes
+        self.subject_memory = dict(list(compact_subjects.items())[-200:])
+        self.documents = self.documents[-30:]
+        self.history = self.history[-MAX_HISTORY_TURNS:]
+        self._rebuild_subject_briefs()
+        self.conversation_summary = self._build_conversation_summary()
+        self._rebuild_example_indexes()
+        after = {
+            "examples": len(self.examples),
+            "memory_notes": len(self.memory_notes),
+            "subjects": len(self.subject_memory),
+            "subject_notes": sum(len(notes) for notes in self.subject_memory.values()),
+            "documents": len(self.documents),
+        }
+        self.save()
+        return {f"before_{key}": value for key, value in before.items()} | {
+            f"after_{key}": value for key, value in after.items()
+        }
 
     def teach(self, question: str, answer: str) -> None:
         question_n = normalize(question)

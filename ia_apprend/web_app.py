@@ -1429,12 +1429,22 @@ HTML_PAGE = """<!doctype html>
       return "A verifier";
     }
 
+    function shortAnswer(text, limit = 520) {
+      const value = String(text || "").trim();
+      if (value.length <= limit) return value;
+      const cut = value.slice(0, limit);
+      const end = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("\n"), cut.lastIndexOf(" "));
+      return `${cut.slice(0, end > 220 ? end + 1 : limit).trim()}\n\n...`;
+    }
+
     function addBubble(role, text, save = true, meta = {}) {
       const bubble = document.createElement("div");
       bubble.className = `bubble ${role}`;
+      const fullText = String(text || "");
+      const collapsedText = role === "assistant" && meta.collapsible !== false ? shortAnswer(fullText) : fullText;
       const textNode = document.createElement("div");
       textNode.className = "bubble-text";
-      textNode.textContent = escapeText(text);
+      textNode.textContent = escapeText(collapsedText);
       bubble.appendChild(textNode);
       if (role === "assistant" && meta.actions !== false) {
         const actions = document.createElement("div");
@@ -1459,6 +1469,19 @@ HTML_PAGE = """<!doctype html>
           });
         });
         actions.appendChild(improve);
+        if (collapsedText !== fullText) {
+          const expand = document.createElement("button");
+          expand.type = "button";
+          expand.textContent = "Developper";
+          expand.addEventListener("click", () => {
+            const expanded = expand.dataset.expanded === "1";
+            textNode.textContent = expanded ? escapeText(collapsedText) : escapeText(fullText);
+            expand.dataset.expanded = expanded ? "0" : "1";
+            expand.textContent = expanded ? "Developper" : "Reduire";
+            chatLog.scrollTop = chatLog.scrollHeight;
+          });
+          actions.appendChild(expand);
+        }
         bubble.appendChild(actions);
       }
       chatLog.appendChild(bubble);
@@ -1929,6 +1952,7 @@ ADMIN_PAGE = """<!doctype html>
       <div class="card">
         <h2>Memoire de discussion</h2>
         <div id="summary" class="summary muted">Chargement...</div>
+        <button id="compact-memory" type="button" style="margin-top:12px">Compacter la memoire</button>
       </div>
       <div class="card">
         <h2>Apprendre une correction</h2>
@@ -1962,6 +1986,26 @@ ADMIN_PAGE = """<!doctype html>
 2. Tu cliques sur "Corriger" dans les signalements.
 3. Tu valides la bonne reponse.
 4. Lucie reutilise cette correction dans les prochains chats.</p>
+      </div>
+    </section>
+    <section class="columns">
+      <div class="card">
+        <h2>Dernieres questions</h2>
+        <div id="recent-questions" class="list"></div>
+      </div>
+      <div class="card">
+        <h2>Confiance faible</h2>
+        <div id="low-confidence" class="list"></div>
+      </div>
+    </section>
+    <section class="columns">
+      <div class="card">
+        <h2>Souvenirs</h2>
+        <div id="memory-notes" class="list"></div>
+      </div>
+      <div class="card">
+        <h2>Actions qualite</h2>
+        <p class="summary muted">Avant un deploy, lance le test qualite local. Il verifie les questions importantes, les calculs, la memoire et les reponses trop vagues.</p>
       </div>
     </section>
     <section class="columns">
@@ -2024,6 +2068,57 @@ ADMIN_PAGE = """<!doctype html>
       document.getElementById("summary").textContent = status.conversation_summary || "Pas encore de memoire.";
       renderReports(data.reports || []);
       renderSubjects(data.subject_briefs || {});
+      renderQuestionList("recent-questions", data.recent_questions || [], "Aucune question recente.");
+      renderQuestionList("low-confidence", data.low_confidence || [], "Aucune reponse faible.");
+      renderMemoryNotes(data.memory_notes || []);
+    }
+    function renderMemoryNotes(notes) {
+      const box = document.getElementById("memory-notes");
+      if (!notes.length) {
+        box.innerHTML = '<div class="muted">Aucun souvenir direct.</div>';
+        return;
+      }
+      box.innerHTML = notes.slice().reverse().map((note, index) => `
+        <div class="item">
+          <p>${text(note)}</p>
+          <button type="button" data-memory-index="${index}">Supprimer</button>
+        </div>
+      `).join("");
+      box.querySelectorAll("button[data-memory-index]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const note = notes.slice().reverse()[Number(button.dataset.memoryIndex || 0)] || "";
+          if (!note || !confirm("Supprimer ce souvenir ?")) return;
+          await fetch("/api/admin/delete-memory-note", {
+            method: "POST",
+            headers: headers({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ note }),
+          });
+          loadAdmin();
+        });
+      });
+    }
+    function renderQuestionList(id, questions, emptyText) {
+      const box = document.getElementById(id);
+      if (!questions.length) {
+        box.innerHTML = `<div class="muted">${emptyText}</div>`;
+        return;
+      }
+      box.innerHTML = questions.map((item, index) => `
+        <div class="item">
+          <strong>${text(item.question)}</strong>
+          <div class="muted">${text(item.conversation)} - ${text(item.confidence_label || "non note")}</div>
+          <p>${text(item.answer || "(pas de reponse)")}</p>
+          <button type="button" data-question-list="${id}" data-question-index="${index}">Corriger</button>
+        </div>
+      `).join("");
+      box.querySelectorAll("button[data-question-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = questions[Number(button.dataset.questionIndex || 0)] || {};
+          document.getElementById("teach-question").value = item.question || "";
+          document.getElementById("teach-answer").value = item.answer || "";
+          document.getElementById("teach-question").focus();
+        });
+      });
     }
     function renderReports(reports) {
       const box = document.getElementById("reports");
@@ -2078,6 +2173,15 @@ ADMIN_PAGE = """<!doctype html>
       }
     });
     document.getElementById("refresh").addEventListener("click", loadAdmin);
+    document.getElementById("compact-memory").addEventListener("click", async () => {
+      const response = await fetch("/api/admin/compact-memory", {
+        method: "POST",
+        headers: headers({ "Content-Type": "application/json" }),
+        body: "{}",
+      });
+      alert(response.ok ? "Memoire compactee." : "Impossible de compacter.");
+      loadAdmin();
+    });
     document.getElementById("teach-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const question = document.getElementById("teach-question").value.trim();
@@ -2247,7 +2351,14 @@ class AppHandler(BaseHTTPRequestHandler):
         items = chats.get(self._session_id(), [])
         return items if isinstance(items, list) else []
 
-    def _save_chat_turn(self, conversation_id: str, title: str, question: str, answer: str) -> list[dict[str, object]]:
+    def _save_chat_turn(
+        self,
+        conversation_id: str,
+        title: str,
+        question: str,
+        answer: str,
+        confidence: dict[str, object] | None = None,
+    ) -> list[dict[str, object]]:
         conversation_id = conversation_id[:96] or secrets.token_urlsafe(12)
         title = (title or "Nouveau chat").strip()[:80] or "Nouveau chat"
         chats = self._load_json_dict(self.chats_path)
@@ -2271,12 +2382,47 @@ class AppHandler(BaseHTTPRequestHandler):
             messages = []
         messages.extend([
             {"role": "user", "text": question},
-            {"role": "assistant", "text": answer},
+            {
+                "role": "assistant",
+                "text": answer,
+                "confidence": (confidence or {}).get("confidence"),
+                "confidence_label": (confidence or {}).get("confidence_label"),
+            },
         ])
         conversation["messages"] = messages[-120:]
         chats[session_id] = conversations[:30]
         self._write_json_dict(self.chats_path, chats)
         return chats[session_id]
+
+    def _recent_server_questions(self) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        chats = self._load_json_dict(self.chats_path)
+        for session_id, conversations in chats.items():
+            if not isinstance(conversations, list):
+                continue
+            for conversation in conversations:
+                if not isinstance(conversation, dict):
+                    continue
+                messages = conversation.get("messages", [])
+                if not isinstance(messages, list):
+                    continue
+                for index, item in enumerate(messages):
+                    if not isinstance(item, dict) or item.get("role") != "user":
+                        continue
+                    answer = messages[index + 1] if index + 1 < len(messages) and isinstance(messages[index + 1], dict) else {}
+                    rows.append(
+                        {
+                            "session_id": str(session_id)[:12],
+                            "conversation": str(conversation.get("title", "Chat")),
+                            "question": str(item.get("text", "")),
+                            "answer": str(answer.get("text", "")),
+                            "confidence": answer.get("confidence"),
+                            "confidence_label": answer.get("confidence_label"),
+                            "updatedAt": conversation.get("updatedAt", 0),
+                        }
+                    )
+        rows.sort(key=lambda item: int(item.get("updatedAt") or 0), reverse=True)
+        return rows[:80]
 
     def _admin_overview_payload(self) -> dict[str, object]:
         return {
@@ -2291,6 +2437,11 @@ class AppHandler(BaseHTTPRequestHandler):
             "preferences": self.bot.list_preferences(),
             "subjects": self.bot.list_subjects(),
             "subject_briefs": self.bot.list_subject_briefs(),
+            "recent_questions": self._recent_server_questions(),
+            "low_confidence": [
+                item for item in self._recent_server_questions()
+                if str(item.get("confidence_label", "")).lower() == "faible"
+            ][:30],
             "history": [
                 {"user": turn.user, "assistant": turn.assistant}
                 for turn in self.bot.history[-30:]
@@ -3006,6 +3157,28 @@ class AppHandler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "profile": self._save_profile(profile)})
             return
+        if path == "/api/admin/compact-memory":
+            if not self._authorized_admin():
+                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
+            stats = self.bot.compact_memory()
+            type(self).last_memory_save_at = time.time()
+            type(self).pending_memory_saves = 0
+            self._send_json({"ok": True, "stats": stats})
+            return
+        if path == "/api/admin/delete-memory-note":
+            if not self._authorized_admin():
+                self._send_json({"error": "Unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
+            note = str(body.get("note", "")).strip()
+            if note:
+                self.bot.memory_notes = [item for item in self.bot.memory_notes if item != note]
+                for key, values in list(self.bot.memory_sources.items()):
+                    self.bot.memory_sources[key] = [item for item in values if item != note]
+                self.bot.conversation_summary = self.bot._build_conversation_summary()
+                self._save_memory_soon(force=True)
+            self._send_json({"ok": True, "memory_count": len(self.bot.memory_notes)})
+            return
 
         self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
@@ -3090,7 +3263,7 @@ class AppHandler(BaseHTTPRequestHandler):
             confidence = {"confidence": 0.32, "confidence_label": "faible", "confidence_reasons": ["incertain"]}
         if conversation_id:
             try:
-                self._save_chat_turn(conversation_id, conversation_title, message, answer_text)
+                self._save_chat_turn(conversation_id, conversation_title, message, answer_text, confidence)
             except OSError:
                 pass
         self._send_json(
