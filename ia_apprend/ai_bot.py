@@ -2333,6 +2333,19 @@ class LearningBot:
             return "Bonjour ! Je suis prete. Pose-moi une question ou donne-moi un sujet."
         if lowered in {"test", "teste", "essai"}:
             return "Test recu. Lucie peut lire ton message et repondre."
+        if any(
+            phrase in lowered
+            for phrase in (
+                "pose moi des questions",
+                "pose-moi des questions",
+                "questions pour discuter",
+                "question pour discuter",
+                "on discute",
+                "discute avec moi",
+                "parle avec moi",
+            )
+        ):
+            return self._discussion_questions()
         if lowered in {"merci", "merci beaucoup", "ok merci"}:
             return "Avec plaisir."
         if lowered in {"ok", "d accord", "daccord", "oui", "non"}:
@@ -3118,7 +3131,18 @@ class LearningBot:
         if "voyage" in fact_n:
             return (
                 "Je retiens: tu es en voyage. "
-                "La prochaine fois que tu reviens me dire bonjour, je pourrai te demander comment ca se passe."
+                "La prochaine fois que tu reviens me dire bonjour, je pourrai te demander comment ca se passe. "
+                "Pour discuter: tu es parti ou ? Tu voyages avec qui ?"
+            )
+        if "examen" in fact_n or "controle" in fact_n:
+            return (
+                f"C'est note. {fact} "
+                "Pour discuter: c'est sur quel chapitre ? Tu veux que je te fasse reviser ?"
+            )
+        if "projet" in fact_n:
+            return (
+                f"C'est note. {fact} "
+                "Pour discuter: tu en es a quelle etape ? C'est quoi le plus dur pour l'instant ?"
             )
         if any(word in fact_n for word in ("aime", "prefere", "habite", "appelle")):
             return f"C'est note. {fact}"
@@ -3129,15 +3153,59 @@ class LearningBot:
             note_n = normalize(note)
             if "voyage" in note_n:
                 if "va partir" in note_n or "part en voyage" in note_n:
-                    return "Tu m'avais dit que tu partais en voyage. Ca se prepare bien ?"
+                    return "Tu m'avais dit que tu partais en voyage. Ca se prepare bien ? Tu pars ou ?"
                 if "revient" in note_n or "retour" in note_n:
-                    return "Tu m'avais parle de ton retour de voyage. Ca s'est bien passe ?"
-                return "Ca va ton voyage ?"
+                    return "Tu m'avais parle de ton retour de voyage. Ca s'est bien passe ? C'etait quoi le meilleur moment ?"
+                return "Ca va ton voyage ? Tu es parti ou ? C'est quoi le meilleur moment pour l'instant ?"
             if "examen" in note_n or "controle" in note_n:
-                return "Ca avance pour ton controle ?"
+                return "Ca avance pour ton controle ? Tu veux que je te pose 3 questions pour reviser ?"
             if "projet" in note_n:
-                return "Ca avance ton projet ?"
+                return "Ca avance ton projet ? Tu en es a quelle etape ?"
         return ""
+
+    def _discussion_questions(self) -> str:
+        note = self.memory_notes[-1] if self.memory_notes else ""
+        note_n = normalize(note)
+        if "voyage" in note_n:
+            questions = [
+                "Tu es parti ou ?",
+                "C'est quoi le meilleur moment de ton voyage pour l'instant ?",
+                "Tu voyages avec qui ?",
+                "Tu veux que je t'aide a raconter ton voyage comme une histoire ?",
+            ]
+            return "Oui, on peut discuter de ton voyage.\n" + "\n".join(f"- {q}" for q in questions)
+        if "examen" in note_n or "controle" in note_n:
+            questions = [
+                "C'est sur quelle matiere ?",
+                "Quel chapitre te semble le plus dur ?",
+                "Tu veux que je te fasse un mini quiz ?",
+                "Tu veux une fiche de revision courte ?",
+            ]
+            return "Oui, on peut discuter de ton controle.\n" + "\n".join(f"- {q}" for q in questions)
+        if "projet" in note_n:
+            questions = [
+                "Ton projet sert a quoi exactement ?",
+                "Tu en es a quelle etape ?",
+                "C'est quoi le prochain gros bloc a faire ?",
+                "Tu veux que je t'aide a faire un plan simple ?",
+            ]
+            return "Oui, on peut discuter de ton projet.\n" + "\n".join(f"- {q}" for q in questions)
+        if self.history:
+            last = self.history[-1].user.strip()
+            if len(last) > 80:
+                last = last[:80].rsplit(" ", 1)[0].rstrip() + "..."
+            return (
+                f"Oui, on peut discuter de ca: {last}\n"
+                "- Tu veux m'expliquer le contexte ?\n"
+                "- Qu'est-ce que tu veux obtenir exactement ?\n"
+                "- Tu preferes une reponse courte, un plan, ou des exemples ?"
+            )
+        return (
+            "Oui, on peut discuter.\n"
+            "- Tu veux parler de ton projet, de l'ecole, d'une idee, ou d'un probleme ?\n"
+            "- Tu veux que je te pose des questions pour t'aider a avancer ?\n"
+            "- Tu preferes que je sois courte ou que je detaille ?"
+        )
 
     def _looks_like_user_statement(self, text: str) -> bool:
         lowered = normalize(text)

@@ -242,6 +242,18 @@ class LearningBotTests(unittest.TestCase):
             self.assertIn("voyage", greeting.lower())
             self.assertTrue("ca va" in greeting.lower() or "raconter" in greeting.lower())
 
+    def test_discussion_questions_use_personal_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            memory_path = Path(temp_dir) / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            bot.answer("je suis en voyage")
+            answer = bot.answer("pose moi des questions pour discuter")
+
+            self.assertIn("voyage", answer.lower())
+            self.assertGreaterEqual(answer.count("?"), 3)
+            self.assertTrue("ou" in answer.lower() or "meilleur moment" in answer.lower())
+
     def test_memory_sources_track_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             memory_path = Path(temp_dir) / "memory.json"
