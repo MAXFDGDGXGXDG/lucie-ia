@@ -18,6 +18,9 @@ except ImportError:  # pragma: no cover - script fallback
     from ai_bot import LearningBot
 
 
+APP_VERSION = "conversation-memory-v1"
+
+
 HTML_PAGE = """<!doctype html>
 <html lang="fr">
 <head>
@@ -2358,6 +2361,7 @@ class AppHandler(BaseHTTPRequestHandler):
     def _status_payload(self) -> dict[str, object]:
         return {
             "ok": True,
+            "app_version": APP_VERSION,
             "warning": self.bot.startup_warning,
             "model": self.bot.model,
             "mode": "openai" if self.bot.api_available else "local",
