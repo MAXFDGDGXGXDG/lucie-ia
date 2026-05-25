@@ -230,6 +230,18 @@ class LearningBotTests(unittest.TestCase):
             self.assertIn("Lucie", answer)
             self.assertIn("Ce que je me rappelle", answer)
 
+    def test_personal_context_makes_greeting_conversational(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            memory_path = Path(temp_dir) / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            saved = bot.answer("je suis en voyage")
+            greeting = bot.answer("coucou")
+
+            self.assertIn("voyage", saved.lower())
+            self.assertIn("voyage", greeting.lower())
+            self.assertTrue("ca va" in greeting.lower() or "raconter" in greeting.lower())
+
     def test_memory_sources_track_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             memory_path = Path(temp_dir) / "memory.json"

@@ -1599,6 +1599,11 @@ class LearningBot:
             self._remember(message, conversation_control)
             return conversation_control
 
+        auto_fact = self._extract_memory_fact(message)
+        if auto_fact is not None:
+            self.remember_note(auto_fact)
+            return self._answer_memory_ack(auto_fact)
+
         remember_command = self._parse_remember_command(message)
         if remember_command is not None:
             self.remember_note(remember_command)
@@ -1635,6 +1640,11 @@ class LearningBot:
 
         subject = self._resolve_subject_context(message, self._detect_subject(message))
         self._capture_memory_from_user(message, subject)
+
+        personal_update = self._answer_personal_update(message)
+        if personal_update is not None:
+            self._remember(message, personal_update)
+            return personal_update
 
         if self._is_conversation_recap_request(message_n):
             response = self._answer_conversation_recap(subject)
@@ -2309,11 +2319,17 @@ class LearningBot:
             rest = lowered.split(" ", 1)[1].strip()
             if rest in {"test", "teste", "essai"}:
                 return "Bonjour ! Test recu: le chat fonctionne. Tu peux maintenant poser une vraie question."
+            context = self._recent_personal_context()
+            if context:
+                return f"Coucou ! {context} Tu veux m'en raconter plus, ou on travaille sur autre chose ?"
             return (
                 "Bonjour ! J'ai bien recu ton message. "
                 "Si tu veux une reponse precise, donne-moi le sujet exact ou la question complete."
             )
         if lowered in {"bonjour", "salut", "coucou", "hey", "hello"}:
+            context = self._recent_personal_context()
+            if context:
+                return f"Coucou ! {context} Tu veux m'en raconter plus, ou on passe a autre chose ?"
             return "Bonjour ! Je suis prete. Pose-moi une question ou donne-moi un sujet."
         if lowered in {"test", "teste", "essai"}:
             return "Test recu. Lucie peut lire ton message et repondre."
@@ -3091,6 +3107,38 @@ class LearningBot:
                 self.remember_subject(subject, highlight)
                 self.remember_note_from_source("conversation", highlight)
 
+    def _answer_personal_update(self, message: str) -> str | None:
+        fact = self._extract_memory_fact(message)
+        if not fact:
+            return None
+        return self._answer_memory_ack(fact)
+
+    def _answer_memory_ack(self, fact: str) -> str:
+        fact_n = normalize(fact)
+        if "voyage" in fact_n:
+            return (
+                "Je retiens: tu es en voyage. "
+                "La prochaine fois que tu reviens me dire bonjour, je pourrai te demander comment ca se passe."
+            )
+        if any(word in fact_n for word in ("aime", "prefere", "habite", "appelle")):
+            return f"C'est note. {fact}"
+        return f"C'est note. Je m'en souviendrai: {fact}"
+
+    def _recent_personal_context(self) -> str:
+        for note in reversed(self.memory_notes):
+            note_n = normalize(note)
+            if "voyage" in note_n:
+                if "va partir" in note_n or "part en voyage" in note_n:
+                    return "Tu m'avais dit que tu partais en voyage. Ca se prepare bien ?"
+                if "revient" in note_n or "retour" in note_n:
+                    return "Tu m'avais parle de ton retour de voyage. Ca s'est bien passe ?"
+                return "Ca va ton voyage ?"
+            if "examen" in note_n or "controle" in note_n:
+                return "Ca avance pour ton controle ?"
+            if "projet" in note_n:
+                return "Ca avance ton projet ?"
+        return ""
+
     def _looks_like_user_statement(self, text: str) -> bool:
         lowered = normalize(text)
         return any(
@@ -3198,6 +3246,25 @@ class LearningBot:
         text = " ".join(message.strip().split())
         if not text:
             return None
+
+        normalized = normalize(text)
+        simple_patterns = [
+            (r"^je suis en voyage(?:\s+(.+))?$", "L'utilisateur est en voyage{value}"),
+            (r"^je pars en voyage(?:\s+(.+))?$", "L'utilisateur part en voyage{value}"),
+            (r"^je vais en voyage(?:\s+(.+))?$", "L'utilisateur va partir en voyage{value}"),
+            (r"^je reviens de voyage(?:\s+(.+))?$", "L'utilisateur revient de voyage{value}"),
+            (r"^j'ai un controle(?:\s+(.+))?$", "L'utilisateur a un controle{value}"),
+            (r"^j ai un controle(?:\s+(.+))?$", "L'utilisateur a un controle{value}"),
+            (r"^j'ai un examen(?:\s+(.+))?$", "L'utilisateur a un examen{value}"),
+            (r"^j ai un examen(?:\s+(.+))?$", "L'utilisateur a un examen{value}"),
+            (r"^je travaille sur un projet(?:\s+(.+))?$", "L'utilisateur travaille sur un projet{value}"),
+        ]
+        for pattern, template in simple_patterns:
+            match = re.match(pattern, normalized)
+            if match:
+                value = match.group(1).strip() if match.groups() and match.group(1) else ""
+                suffix = f" {value}" if value else ""
+                return template.format(value=suffix)
 
         patterns = [
             (r"(?i)^je\s+m['â€™ ]?appelle\s+(.+)$", "L'utilisateur s'appelle {value}"),
