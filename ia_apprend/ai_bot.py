@@ -1579,6 +1579,11 @@ class LearningBot:
             self.clear_pending_action()
             return self._answer_summary(target)
 
+        common_answer = self._answer_common_question(message)
+        if common_answer is not None:
+            self._remember(message, common_answer)
+            return common_answer
+
         exact_answer = self._find_exact(message_n)
         if exact_answer is not None:
             self._remember(message, exact_answer)
@@ -1617,11 +1622,6 @@ class LearningBot:
             self.remember_subject("math", self._summarize_for_memory(message, calculation))
             self._remember(message, calculation)
             return calculation
-
-        common_answer = self._answer_common_question(message)
-        if common_answer is not None:
-            self._remember(message, common_answer)
-            return common_answer
 
         local_hint = self._find_exact_or_partial(message_n)
         if local_hint:
