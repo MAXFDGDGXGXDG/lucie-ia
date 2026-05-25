@@ -1200,6 +1200,7 @@ HTML_PAGE = """<!doctype html>
     const PROFILE_KEY = "lucie_user_profile_v1";
     let conversations = [];
     let activeConversationId = "";
+    let localChangedAt = 0;
     let userProfile = loadProfile();
 
     function loadProfile() {
@@ -1277,14 +1278,36 @@ HTML_PAGE = """<!doctype html>
     }
 
     async function loadServerConversations() {
+      const requestStartedAt = Date.now();
       try {
         const response = await fetch("/api/conversations");
         const data = await response.json();
         if (Array.isArray(data.conversations) && data.conversations.length) {
-          conversations = data.conversations;
-          activeConversationId = conversations[0].id;
+          const merged = new Map();
+          data.conversations.forEach((conversation) => {
+            if (conversation && conversation.id) {
+              merged.set(conversation.id, conversation);
+            }
+          });
+          conversations.forEach((conversation) => {
+            if (!conversation || !conversation.id) return;
+            const serverConversation = merged.get(conversation.id);
+            const localUpdated = Number(conversation.updatedAt || 0);
+            const serverUpdated = Number(serverConversation ? serverConversation.updatedAt || 0 : 0);
+            if (!serverConversation || localUpdated >= serverUpdated) {
+              merged.set(conversation.id, conversation);
+            }
+          });
+          conversations = Array.from(merged.values())
+            .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0))
+            .slice(0, 30);
+          if (!conversations.some((conversation) => conversation.id === activeConversationId)) {
+            activeConversationId = conversations[0].id;
+          }
           saveConversations();
-          renderConversation();
+          if (localChangedAt <= requestStartedAt) {
+            renderConversation();
+          }
           renderChatList();
         }
       } catch (error) {
@@ -1310,6 +1333,7 @@ HTML_PAGE = """<!doctype html>
       };
       conversations.unshift(conversation);
       activeConversationId = conversation.id;
+      localChangedAt = Date.now();
       saveConversations();
       if (render) {
         renderConversation();
@@ -1327,6 +1351,7 @@ HTML_PAGE = """<!doctype html>
       }
       conversations = [conversation, ...conversations.filter((item) => item.id !== conversation.id)];
       activeConversationId = conversation.id;
+      localChangedAt = Date.now();
       saveConversations();
       renderChatList();
     }
