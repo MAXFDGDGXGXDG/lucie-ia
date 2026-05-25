@@ -60,7 +60,10 @@ EXTRA_QA_FILE_NAMES = (
     "local_personal_knowledge.json",
 )
 DEFAULT_EXAMPLES: list[dict[str, str]] = [
-    {"question": "bonjour", "answer": "Bonjour !"},
+    {
+        "question": "bonjour",
+        "answer": "Bonjour ! Je suis prete. Pose-moi une question, donne-moi un texte a corriger, ou demande une explication.",
+    },
     {
         "question": "comment faire",
         "answer": "Je peux donner les \u00e9tapes: entr\u00e9e, traitement, sortie, avec un exemple. Precise le sujet exact et je l'adapte.",
@@ -1615,6 +1618,11 @@ class LearningBot:
             self._remember(message, calculation)
             return calculation
 
+        common_answer = self._answer_common_question(message)
+        if common_answer is not None:
+            self._remember(message, common_answer)
+            return common_answer
+
         local_hint = self._find_exact_or_partial(message_n)
         if local_hint:
             self._remember(message, local_hint)
@@ -2264,12 +2272,36 @@ class LearningBot:
         lowered = normalize(message)
         if not lowered:
             return None
+        greeting_prefixes = ("bonjour ", "salut ", "coucou ", "hello ", "hey ")
+        if lowered.startswith(greeting_prefixes):
+            rest = lowered.split(" ", 1)[1].strip()
+            if rest in {"test", "teste", "essai"}:
+                return "Bonjour ! Test recu: le chat fonctionne. Tu peux maintenant poser une vraie question."
+            return (
+                "Bonjour ! J'ai bien recu ton message. "
+                "Si tu veux une reponse precise, donne-moi le sujet exact ou la question complete."
+            )
         if lowered in {"bonjour", "salut", "coucou", "hey", "hello"}:
             return "Bonjour ! Je suis prete. Pose-moi une question ou donne-moi un sujet."
+        if lowered in {"test", "teste", "essai"}:
+            return "Test recu. Lucie peut lire ton message et repondre."
         if lowered in {"merci", "merci beaucoup", "ok merci"}:
             return "Avec plaisir."
         if lowered in {"ok", "d accord", "daccord", "oui", "non"}:
             return "OK. Dis-moi la suite et je garde le fil."
+        if lowered in {"encore", "plus", "apres", "continue", "suite"}:
+            if self.history:
+                return (
+                    "Je continue. Pour aller plus haut, je peux soit detailler la derniere reponse, "
+                    "soit proposer une nouvelle amelioration, soit transformer ca en plan d'action. "
+                    "Dis-moi: detaille, plan, exemple, ou corrige."
+                )
+            return "D'accord. Donne-moi d'abord un sujet, puis je pourrai continuer dessus."
+        if lowered.startswith(("ameliore", "ameliorer", "améliore", "améliorer")):
+            return (
+                "Je peux ameliorer ca en 4 axes: clarte, exactitude, exemples, et prochaine action. "
+                "Envoie le texte, la reponse ou le sujet a ameliorer, et je te fais une version meilleure."
+            )
         if any(phrase in lowered for phrase in ("qui es tu", "qui es-tu", "tu es qui", "comment tu t appelles", "comment tu t'appelles")):
             return (
                 "Je suis Lucie, ton assistant local. Je peux repondre, expliquer, corriger, "
@@ -3379,12 +3411,15 @@ class LearningBot:
 
         if any(word in cleaned_n for word in ("comment", "pourquoi", "qu'est-ce que", "qui est")):
             return self._format_response(
-                "Je peux r?pondre, mais j'ai besoin d'un peu plus de contexte.",
-                ["Donne-moi le sujet exact ou colle le texte."],
+                "Je peux repondre, mais il manque le sujet principal.",
+                [
+                    "Donne-moi le mot ou la phrase a expliquer.",
+                    "Exemple: 'comment fonctionne une API ?' ou 'pourquoi le ciel est bleu ?'",
+                ],
                 self._next_question_hint(subject_context or "", cleaned),
             )
         return self._compose_prediction_answer(prediction, entities, relations) if prediction else (
-            "Je peux r?pondre, mais je veux ?tre s?r de bien viser. Peux-tu pr?ciser ta question ?"
+            "Je peux repondre, mais je veux bien viser. Ajoute le sujet exact, ou demande: definition, exemple, plan, calcul, correction ou resume."
         )
 
     def _answer_from_synthetic_catalog(self, message: str) -> str | None:
@@ -3859,6 +3894,37 @@ class LearningBot:
             return (
                 "Une intelligence artificielle est un programme qui apprend ? reconna?tre des "
                 "motifs et ? produire des r?ponses utiles ? partir de donn?es."
+            )
+        if any(phrase in lower for phrase in ("qui est lucie", "c'est quoi lucie", "que peut faire lucie", "lucie ia")):
+            return (
+                "Lucie est une IA conversationnelle: elle peut repondre aux questions, corriger un texte, "
+                "resumer, expliquer, calculer et garder le fil d'une discussion. Si elle se trompe, on peut "
+                "signaler la reponse pour l'ameliorer."
+            )
+        if "api" in lower and any(word in lower for word in ("c'est quoi", "qu'est-ce que", "sert", "fonctionne")):
+            return (
+                "Une API est une porte d'entree entre deux programmes. Une application envoie une requete, "
+                "le serveur traite la demande, puis renvoie une reponse structuree."
+            )
+        if "serveur" in lower and any(word in lower for word in ("c'est quoi", "qu'est-ce que", "fonctionne", "sert")):
+            return (
+                "Un serveur est un ordinateur ou un programme qui attend des demandes et renvoie des reponses. "
+                "Par exemple, le site de Lucie tourne sur un serveur Render. Je peux aussi te faire un schema simple."
+            )
+        if "render" in lower:
+            return (
+                "Render sert a mettre une application en ligne. GitHub garde le code, Render le recupere, "
+                "demarre le serveur, puis donne une adresse web accessible aux utilisateurs."
+            )
+        if "github" in lower:
+            return (
+                "GitHub sert a stocker le code et son historique. Quand on pousse une nouvelle version, "
+                "Render peut rededeployer automatiquement l'application."
+            )
+        if any(word in lower for word in ("site", "application", "app")) and any(word in lower for word in ("marche", "fonctionne", "bug", "erreur")):
+            return (
+                "Pour verifier une app web, regarde trois choses: la page s'affiche, la console JavaScript n'a pas d'erreur, "
+                "et l'API repond bien. Si un message disparait, c'est souvent un formulaire qui recharge la page ou un script casse."
             )
         if any(word in lower for word in ("qu'est-ce que python", "c'est quoi python", "python")):
             return (
@@ -4752,9 +4818,9 @@ class LearningBot:
             return self._compose_prediction_answer(prediction, entities, relations)
 
         return (
-            "Je peux deja travailler avec ce que tu m'as donne, mais j'ai besoin d'un peu "
-            "plus de contexte. Envoie un texte, une question plus precise, ou utilise "
-            "/teach question | reponse pour m'apprendre une meilleure reponse."
+            "Je peux t'aider, mais je veux eviter de repondre au hasard. "
+            "Envoie une question complete, un texte a corriger/resumer, un calcul, ou un sujet precis. "
+            "Exemples: 'explique Render', 'corrige cette phrase', 'calcule 25% de 80'."
         )
 
     def _compose_prediction_answer(

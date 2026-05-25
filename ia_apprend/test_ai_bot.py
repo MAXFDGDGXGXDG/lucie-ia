@@ -78,6 +78,25 @@ class LearningBotTests(unittest.TestCase):
             self.assertIn("bleu", answer.lower())
             self.assertIn("lumi", answer.lower())
 
+    def test_direct_messages_are_useful(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            memory_path = Path(temp_dir) / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            self.assertIn("question", bot.answer("bonjour").lower())
+            self.assertIn("repondre", bot.answer("test").lower())
+            self.assertIn("amelior", bot.answer("ameliore").lower())
+
+    def test_common_app_questions_have_grounded_answers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            memory_path = Path(temp_dir) / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            self.assertIn("mettre", bot.answer("a quoi sert Render ?").lower())
+            self.assertIn("code", bot.answer("c'est quoi GitHub ?").lower())
+            api_answer = bot.answer("c'est quoi une API ?").lower()
+            self.assertIn("serveur", api_answer)
+            self.assertNotIn("cle api", api_answer)
 
     def test_calculation_mode_solves_simple_expression(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
