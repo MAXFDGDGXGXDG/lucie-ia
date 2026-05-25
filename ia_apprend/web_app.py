@@ -1032,6 +1032,7 @@ HTML_PAGE = """<!doctype html>
               <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Fermer" onclick="document.body.classList.add('sidebar-closed')">×</button>
             </div>
             <button class="new-chat" id="new-chat" type="button">+ Nouveau chat</button>
+            <button class="report-btn" id="lesson-mode" type="button">Mode apprentissage</button>
             <button class="report-btn" id="report-bad-answer" type="button">Signaler la derniere reponse</button>
             <a class="report-note" href="/admin">Admin Maxence</a>
             <div class="report-note">Envoie la question et la reponse a Maxence pour ameliorer Lucie.</div>
@@ -1065,6 +1066,7 @@ HTML_PAGE = """<!doctype html>
             <button type="button" data-fill="resume ca">Resumer</button>
             <button type="button" data-fill="j'ai une question">Question</button>
             <button type="button" data-fill="quiz">Quiz</button>
+            <button type="button" data-fill="mode apprentissage">Apprendre</button>
             <button type="button" data-fill="que sais-tu de moi ?">Memoire</button>
           </div>
         </div>
@@ -1142,6 +1144,7 @@ HTML_PAGE = """<!doctype html>
     const chatSidebar = document.querySelector(".chat-sidebar");
     const sidebarClose = document.getElementById("sidebar-close");
     const newChatButton = document.getElementById("new-chat");
+    const lessonModeButton = document.getElementById("lesson-mode");
     const reportBadAnswerButton = document.getElementById("report-bad-answer");
     const connectGoogleButton = document.getElementById("connect-google");
     const connectMicrosoftButton = document.getElementById("connect-microsoft");
@@ -1786,6 +1789,14 @@ HTML_PAGE = """<!doctype html>
       newChatButton.addEventListener("click", () => {
         createConversation(true);
         input.focus();
+      });
+    }
+
+    if (lessonModeButton) {
+      lessonModeButton.addEventListener("click", () => {
+        input.value = "mode apprentissage";
+        form.requestSubmit();
+        document.body.classList.add("sidebar-closed");
       });
     }
 

@@ -57,6 +57,25 @@ class LearningBotTests(unittest.TestCase):
             self.assertTrue(summary)
             self.assertNotIn("Envoie-moi le texte", summary)
 
+    def test_lesson_mode_builds_revision_sheet(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            memory_path = Path(temp_dir) / "memory.json"
+            bot = LearningBot.load(memory_path)
+
+            intro = bot.answer("mode apprentissage")
+            answer = bot.answer(
+                "Cours: La photosynthese permet aux plantes de fabriquer du sucre avec la lumiere. "
+                "Les feuilles captent le dioxyde de carbone et l'eau. "
+                "La chlorophylle aide a utiliser l'energie lumineuse. "
+                "La plante libere de l'oxygene dans l'air."
+            )
+
+            self.assertIn("Mode apprentissage", intro)
+            self.assertIn("lecon apprise", answer.lower())
+            self.assertIn("Questions pour reviser", answer)
+            self.assertGreaterEqual(len(bot.documents), 1)
+            self.assertTrue(any("photosynthese" in item["question"] for item in bot.examples))
+
     def test_correction_mode_explains_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             memory_path = Path(temp_dir) / "memory.json"

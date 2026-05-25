@@ -1579,6 +1579,11 @@ class LearningBot:
             self.clear_pending_action()
             return self._answer_summary(target)
 
+        if self.pending_action == "lesson":
+            target = message.strip()
+            self.clear_pending_action()
+            return self._answer_lesson(target)
+
         common_answer = self._answer_common_question(message)
         if common_answer is not None:
             self._remember(message, common_answer)
@@ -1671,6 +1676,13 @@ class LearningBot:
         if self._is_summary_request(message_n):
             self.set_pending_action("summary", message)
             return "D'accord. Envoie-moi le texte a resumer."
+
+        if self._is_lesson_request(message_n):
+            self.set_pending_action("lesson", message)
+            return (
+                "Mode apprentissage active. Colle ta lecon ici, meme si elle est longue. "
+                "Je vais en faire une fiche, retenir les notions importantes et creer des questions de revision."
+            )
 
         if subject and (self._is_topic_opening_message(message_n) or normalize(subject) == message_n):
             response = self._answer_topic_opening(message, subject)
@@ -1839,6 +1851,26 @@ class LearningBot:
                 "resume",
                 "resumer",
                 "fais un resume",
+            )
+        )
+
+    def _is_lesson_request(self, message_n: str) -> bool:
+        return any(
+            phrase in message_n
+            for phrase in (
+                "mode apprentissage",
+                "mode lecon",
+                "mode leçon",
+                "apprendre une lecon",
+                "apprendre une leçon",
+                "apprends cette lecon",
+                "apprends cette leçon",
+                "je veux apprendre une lecon",
+                "je veux apprendre une leçon",
+                "fiche de revision",
+                "fiche de révision",
+                "revision lecon",
+                "révision leçon",
             )
         )
 
@@ -2680,6 +2712,135 @@ class LearningBot:
                 return answer
 
         return self._extractive_summary(text)
+
+    def _answer_lesson(self, text: str) -> str:
+        lesson = " ".join(text.strip().split())
+        if len(lesson) < 40:
+            self.set_pending_action("lesson", text)
+            return "La lecon est trop courte. Colle le cours complet, avec au moins quelques phrases."
+
+        title = self._lesson_title(lesson)
+        summary = self._extractive_summary(lesson)
+        keywords = self._lesson_keywords(lesson)
+        key_points = self._lesson_key_points(lesson, keywords)
+        questions = self._lesson_questions(title, keywords, key_points)
+
+        document = self._format_lesson_document(title, summary, key_points, questions)
+        self.add_document(f"Lecon - {title}", document)
+        self.remember_subject(title, f"Lecon apprise: {summary}")
+        self.remember_note_from_source("lesson", f"Lecon apprise: {title}")
+
+        for question, answer in questions[:4]:
+            try:
+                self.teach(question, answer)
+            except ValueError:
+                pass
+
+        try:
+            self.save()
+        except OSError:
+            pass
+
+        return self._format_lesson_answer(title, summary, key_points, questions)
+
+    def _lesson_title(self, text: str) -> str:
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+        first = sentences[0].strip() if sentences else text.strip()
+        first = re.sub(r"(?i)^(lecon|leçon|cours|chapitre)\s*[:\-]?\s*", "", first).strip()
+        if len(first) > 58:
+            first = first[:58].rsplit(" ", 1)[0].rstrip()
+        first = first.strip(" .!?;:")
+        if first:
+            return first[0].upper() + first[1:]
+        keywords = self._lesson_keywords(text)
+        return keywords[0].capitalize() if keywords else "Nouvelle lecon"
+
+    def _lesson_keywords(self, text: str) -> list[str]:
+        stop = EXAMPLE_INDEX_STOP_WORDS | {
+            "cela", "etre", "avoir", "sont", "fait", "faire", "comme", "entre",
+            "leur", "leurs", "peut", "peuvent", "quand", "alors", "cours",
+            "lecon", "leçon", "exemple", "important", "definition", "définition",
+        }
+        counts: Counter[str] = Counter(
+            token for token in tokenize(text) if len(token) > 3 and token not in stop and not token.isdigit()
+        )
+        return [word for word, _ in counts.most_common(8)]
+
+    def _lesson_key_points(self, text: str, keywords: list[str]) -> list[str]:
+        sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", text) if sentence.strip()]
+        scored: list[tuple[int, str]] = []
+        for sentence in sentences:
+            sentence_n = normalize(sentence)
+            score = sum(1 for keyword in keywords if keyword in sentence_n)
+            if any(marker in sentence_n for marker in ("important", "donc", "car", "parce que", "definition", "exemple")):
+                score += 1
+            scored.append((score, sentence))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        points: list[str] = []
+        for _, sentence in scored:
+            point = sentence.strip()
+            if len(point) > 170:
+                point = point[:170].rsplit(" ", 1)[0].rstrip() + "..."
+            if point and point not in points:
+                points.append(point)
+            if len(points) >= 5:
+                break
+        if not points and text:
+            points.append(self._extractive_summary(text))
+        return points
+
+    def _lesson_questions(
+        self,
+        title: str,
+        keywords: list[str],
+        key_points: list[str],
+    ) -> list[tuple[str, str]]:
+        main = keywords[0] if keywords else title
+        questions: list[tuple[str, str]] = [
+            (f"Quel est le sujet principal de la lecon sur {title} ?", f"Le sujet principal est {title}."),
+            (f"Quels sont les mots importants de la lecon sur {title} ?", ", ".join(keywords[:6]) or title),
+        ]
+        if key_points:
+            questions.append((f"Donne une idee importante de la lecon sur {title}.", key_points[0]))
+        if len(key_points) > 1:
+            questions.append((f"Explique rapidement {main}.", key_points[1]))
+        return questions
+
+    def _format_lesson_document(
+        self,
+        title: str,
+        summary: str,
+        key_points: list[str],
+        questions: list[tuple[str, str]],
+    ) -> str:
+        lines = [f"Fiche de revision: {title}", "", f"Resume: {summary}", "", "Points importants:"]
+        lines.extend(f"- {point}" for point in key_points)
+        lines.append("")
+        lines.append("Questions de revision:")
+        lines.extend(f"- Q: {question} | R: {answer}" for question, answer in questions)
+        return "\n".join(lines)
+
+    def _format_lesson_answer(
+        self,
+        title: str,
+        summary: str,
+        key_points: list[str],
+        questions: list[tuple[str, str]],
+    ) -> str:
+        lines = [
+            f"Mode apprentissage: lecon apprise - {title}",
+            "",
+            f"Resume: {summary}",
+            "",
+            "A retenir:",
+        ]
+        lines.extend(f"{index}. {point}" for index, point in enumerate(key_points[:5], 1))
+        lines.append("")
+        lines.append("Questions pour reviser:")
+        lines.extend(f"{index}. {question}" for index, (question, _) in enumerate(questions[:4], 1))
+        lines.append("")
+        lines.append("Tu peux maintenant me demander: 'interroge-moi sur cette lecon' ou poser une question dessus.")
+        return "\n".join(lines)
 
     def _extractive_summary(self, text: str) -> str:
         sentences = re.split(r"(?<=[.!?])\s+", text.strip())
