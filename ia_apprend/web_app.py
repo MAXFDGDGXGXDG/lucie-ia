@@ -1463,8 +1463,9 @@ HTML_PAGE = """<!doctype html>
       const value = String(text || "").trim();
       if (value.length <= limit) return value;
       const cut = value.slice(0, limit);
-      const end = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("\n"), cut.lastIndexOf(" "));
-      return `${cut.slice(0, end > 220 ? end + 1 : limit).trim()}\n\n...`;
+      const lineBreak = String.fromCharCode(10);
+      const end = Math.max(cut.lastIndexOf("."), cut.lastIndexOf(lineBreak), cut.lastIndexOf(" "));
+      return `${cut.slice(0, end > 220 ? end + 1 : limit).trim()}${lineBreak}${lineBreak}...`;
     }
 
     function typeInto(node, text, done) {
